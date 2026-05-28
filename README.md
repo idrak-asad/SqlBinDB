@@ -72,59 +72,35 @@ Maintains data integrity layout layers across complex storage grids.
 
 
 
-SqlBinDB — Embedded Binary Relational Database Engine
-SqlBinDB, resursları məhdud olan mikrokontrollerlər (ESP32) və çarpaz platformalı masaüstü sistemlər (Windows, Linux) üçün sıfırdan, C dilində hazırlanmış yüngül (lightweight), relyasiyalı, indeksli və yüksək qənaətli lokal binar verilənlər bazası mühərrikidir.
+# SqlBinDB — Ultra-Yüngül Daxili Binar Relyasiyalı Verilənlər Bazası Mühərriki
 
-Heç bir xarici kitabxanadan (SQLite və s.) asılılığı yoxdur. Məlumatları birbaşa diskdə xüsusi binar formatda (.db, .idx) saxlayır, axın rejimində (stream processing) işləyir və RAM-ı yükləmədən birbaşa binar axtarış tətbiq edir.
+[![Lisenziya: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Platforma](https://img.shields.io/badge/platform-ESP32%20%7C%20Linux%20%7C%20Windows-blue)](https://github.com/)
+[![Dil](https://img.shields.io/badge/language-C%20%2F%20C%2B%2B-green)](https://en.wikipedia.org/wiki/C_(programming_language))
 
- Əsas Üstünlüklər və Yaddaşa Qənaət Arxitekturası
-Zero-RAM & Stream Processing: Böyük cədvəlləri oxuyarkən bütün datanı RAM-a yükləmir. fseek və fread funksiyaları ilə birbaşa disk üzərində sətir-sətir gəzir. RAM-da sadəcə 1 sətirlik bufer (rowSize) saxlanılır.
+SqlBinDB — resursları məhdud olan sistemlər (xüsusilə **ESP32 mikrokontrollerləri**) və çarpaz platformalı masaüstü mühitlər (**Linux, Windows**) üçün sıfırdan, sırf **C dilində** hazırlanmış, heç bir xarici asılılığı olmayan (zero-dependency) yüksək performanslı daxili relyasiyalı verilənlər bazası mühərrikidir.
 
-İtkisiz Dairəvi Model (Soft-Delete & Reuse): Silinən sətirlər diskdən fiziki olaraq dərhal silinib fraqmentasiya yaratmır. Sətrin başındakı is_deleted bayrağı 1 edilir. Yeni məlumat daxil edilərkən (INSERT), sistem cədvəli yoxlayır və ilk tapdığı silinmiş boş sətir yerini rəsmi olaraq yenidən istifadə edir (Data Reuse).
+Xüsusi olaraq hazırlanmış sıx binar fayl formatı (`.db`, `.idx`) sayəsində SqlBinDB, ağır xarici SQL mühərriklərinin yaratdığı əlavə yükü tamamilə aradan qaldırır. Bununla belə, lokal yaddaş üzərində relyasiyalı əlaqələri, indeksləməni və kaskadlı struktur bütövlüyünü tam dəstəkləyir.
 
-Binar Kompakt Format: Sətirlər diskdə struktur səviyyəsində (#pragma pack(push, 1)) sıxılmış halda, heç bir boşluq (padding) buraxılmadan sırf binar olaraq saxlanılır. Bu, flash yaddaşın aşınmasını minimuma endirir.
+---
 
-Çarpaz Platforma Dəstəyi (Cross-Platform VFS): ESP32-də daxili LittleFS virtual fayl sistemi ilə tam inteqrasiya olunub standart fopen bloklanmalarını aradan qaldırır. Eyni kod heç bir dəyişiklik edilmədən Windows və Linux-da da çalışır.
+## 🚀 Əsas Üstünlüklər və Yaddaş Optimizasiyası Arxitekturası
 
- Modullar və Funksionallıqlar
-1. Database (Baza) İdarəetməsi (db_controls.h)
-Mərkəzi reyestr sistemi (master_dbs.db) vasitəsilə eyni mühitdə çoxlu verilənlər bazası yaratmağa və idarə etməyə imkan verir. təhlükəsizlik üçün şifrələmə metadatası dəstəklənir.
+### 📉 Zero-RAM və Axın Rejimində Oxuma (Stream Processing)
+Cədvəlləri tamamilə RAM (Heap) yaddaşına yükləyən ənənəvi verilənlər bazalarından fərqli olaraq, SqlBinDB lokal kursor axını ilə işləyir. Aşağı səviyyəli `fseek()` və `fread()` funksiyalarından istifadə edərək məlumatları birbaşa flash yaddaşdan/diskdən sətir-sətir skan edir. Verilənlər bazasının ölçüsündən asılı olmayaraq RAM sərfi sabit qalır ($O(1)$ space complexity) və operativ yaddaşda sadəcə bir sətirlik bufer (`rowSize`) saxlanılır.
 
-initSystem(): LittleFS və ya lokal diski başladır, mərkəzi reyestri yoxlayır və sazlayır.
+### 🔄 Sıfır-Fraqmentasiya və Dairəvi Model (Məlumatın Yenidən İstifadəsi)
+IoT cihazlarında fayl sisteminin fraqmentasiyaya uğramasının və Flash yaddaşın tez aşınmasının qarşısını almaq üçün SqlBinDB ağıllı **Soft-Delete (Yumşaq Silmə)** mexanizmini tətbiq edir. Silinən qeydlər diskdən fiziki olaraq dərhal təmizlənmir, sadəcə sətrin başındakı 1 baytlıq başlıq bayrağı `is_deleted = 1` edilir. Yeni məlumat əlavə edilərkən (`INSERT`), mühərrik cədvəli ardıcıl yoxlayır və faylın sonuna yeni sətir açmaqdan öncə, tapdığı ilk silinmiş boş yuvanı rəsmi olaraq yenidən istifadə edir.
 
-createDb(DbName, DbPsw, reCreate): Şifrəli mərkəzi qeydiyyatla yeni baza və onun daxili metadata qovluq strukturlarını yaradır.
+### 🗜️ Ultra-Sıx binar Saxlama Formatı
+Məlumat strukturları yaddaşda verilənlərin düzləndirilməsi qaydalarını ləğv edərək byte-ba-byte birbaşa diskə həkk olunur (`#pragma pack(push, 1)`). Bu, strukturlar arası boşluq baytlarını (padding) tamamilə sıfırlayır və faylın ölçüsünü JSON və ya adi mətn tipli CSV loqları ilə müqayisədə 60%-ə qədər kiçildərək mikrokontrollerlərin daxili flash yaddaşına maksimum qənaət edir.
 
-connectDb(DbName, DbPsw): Şifrəni yoxlayaraq müvafiq bazaya təhlükəsiz qoşulur və cari aktiv yolu (current_db_path) tənzimləyir.
+### 🌐 Çarpaz Platformalı VFS İnteqrasiyası
+Təkmilləşdirilmiş aparat abstraksiya təbəqəsi (HAL) sayəsində standart daxili I/O axınlarını birbaşa **ESP32 Virtual Fayl Sistemi (VFS) üzərindən LittleFS**-ə bağlayır və gizli konfiqurasiya kilidlərini həll edir. Eyni kod bazası heç bir dəyişiklik edilmədən masaüstü Linux və Windows mühitlərində də yerli olaraq dərhal kompilyasiya olunur.
 
-dropDb(DbName, DbPsw): Bazanı mərkəzi reyestrdən silir.
+---
 
-2. Table (Cədvəl) Sxemləri (table_controls.h)
-Dinamik binar sxem idarəetməsi. Hər bir cədvəl yaradılarkən onun başlıq bloku (DBHeader) və sütun konfiqurasiyaları (ColumnConfig) faylın daxilinə binar olaraq həkk olunur.
-
-createTable(...): Sütun adları, tipləri (INT, UINT32, UINT8, CHAR) və məhdudiyyətləri (Constraints) qəbul edərək binar cədvəl yaradır.
-
-dropTable(tableName, hardDrop): Cədvəli silir. CASCADE funksionallığı sayəsində əgər digər cədvəllərlə əlaqəsi varsa, zəncirvari silmə tətbiq edə bilir.
-
-selectTables(tableName): Cədvəlin sxemini (sütun adları, tip ID-ləri, ölçüləri və limitləri) terminala vizual olaraq çıxarır.
-
-3. Sürətli İndeksləmə Modulu (index_controls.h)
-Axtarış sürətini artırmaq üçün istənilən sütun üzrə manual olaraq .idx binar indeks faylları yaradıla bilər.
-
-createIndex(tableName, columnName): Sütun üçün xüsusi binar indeks faylı təyin edir və mərkəzi indexes.db reyestrinə bağlayır.
-
-resetTableIndexes(tableName): Cədvəl silindikdə və ya yenidən yaradıldıqda ona bağlı bütün fiziki indeks fayllarını təmizləyir.
-
-4. Relyasiyalar və Xarici Açarlar (relation_controls.h)
-Cədvəllər arasında One-to-Many (Birin-Çoxa) və ya Many-to-Many (Çoxun-Çoxa) əlaqələr qurulmasını təmin edir. Məlumatın bütövlüyünü (Referential Integrity) qoruyur.
-
-createRelation(parentTable, parentCol, childTable, childCol): Valideyn və uşaq cədvəlləri sütun ID-ləri səviyyəsində rəsmi olaraq bir-birinə bağlayır (relations.db).
-
-5. CRUD və Gelişmiş Məlumat Əməliyyatları (data_controls.h)
-Create (Insert): insertRows() funksiyası məlumatı daxil edərkən PRIMARY KEY (Unikallıq), NOT NULL və UNIQUE məhdudiyyətlərini (Constraints) binar səviyyədə yoxlayır. Boş yer varsa oraya yazır, yoxdursa faylın sonuna əlavə edir.
-
-Read (Select): Şərtli və şərtsiz oxuma. where filtrləri (=, >, <, !, LIKE) dəstəklənir.
-
-Update: Mövcud sətirlərin məlumatlarını disk üzərində birbaşa modifikasiya edir.
+## 🛠️ Modulyar Alt
 
 Delete: deleteRows(..., hardDelete) funksiyası unikal parametrlərə malikdir:
 
