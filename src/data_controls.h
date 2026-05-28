@@ -439,9 +439,9 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
                             // void *childWhereData[] = {&parentIdVal};
                             // char *childWhereOps[] = {"=", NULL};
 
-                            const char *childWhereCols[] = {"user_id", NULL};
+                            char *childWhereCols[] = {"user_id", NULL};
                             void *childWhereData[] = {&parentIdVal};
-                            const char *childWhereOps[] = {"=", NULL};
+                            char *childWhereOps[] = {"=", NULL};
 
                             // Uşaq cədvəlin adını təyin edib (Məs: devices) silirik:
                             deleteRows("devices", childWhereCols, childWhereData, childWhereOps, 1);
