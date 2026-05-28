@@ -15,12 +15,33 @@ bool helperCheckDbExists(char *DbName, char *outPsw, long *outOffset);
 
 // Sistemi ilk dəfə işə salanda ana qovluğu yaradır
 void initSystem() {
-  // _mkdir(MASTER_DIR);
-  platform_create_dir(MASTER_DIR);
-  // Əgər fayl yoxdursa, yaradıb bağlasın
-  FILE *f = fopen(MASTER_FILE, "ab");
-  if (f)
-    fclose(f);
+
+    // LittleFS mount
+    if(!LittleFS.begin(true)){
+        printf("LittleFS mount xetasi!\n");
+        return;
+    }
+
+    // əsas qovluq
+    platform_create_dir(MASTER_DIR);
+
+    // master faylı yoxdursa yarat
+    FILE *f = fopen(MASTER_FILE, "rb");
+
+    if(!f){
+
+        f = fopen(MASTER_FILE, "wb");
+
+        if(!f){
+            printf("MASTER FILE yaradila bilmedi!\n");
+            return;
+        }
+
+        printf("MASTER FILE yaradildi.\n");
+    }
+
+    if(f)
+        fclose(f);
 }
 
 // ====================================================================
