@@ -15,7 +15,8 @@ bool helperCheckDbExists(char *DbName, char *outPsw, long *outOffset);
 
 // Sistemi ilk dəfə işə salanda ana qovluğu yaradır
 void initSystem() {
-  _mkdir(MASTER_DIR);
+  // _mkdir(MASTER_DIR);
+  platform_create_dir(MASTER_DIR);
   // Əgər fayl yoxdursa, yaradıb bağlasın
   FILE *f = fopen(MASTER_FILE, "ab");
   if (f)
