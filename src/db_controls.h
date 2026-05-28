@@ -27,25 +27,59 @@ void initSystem() {
 // CREATE DATABASE
 // ====================================================================
 bool createDb(const char *dbName, const char *password, bool reCreate) {
-    // 1. Əsas verilənlər bazası qovluğunu platformaya uyğun yaradırıq
-    platform_create_dir(dbName);
 
-    // 2. Alt metadata və tables qovluqlarını yaradırıq
-    char metaFolder[256], tablesFolder[256];
-    snprintf(metaFolder, sizeof(metaFolder), "%s/metadata", dbName);
-    snprintf(tablesFolder, sizeof(tablesFolder), "%s/tables", dbName);
-    
+    // əvvəl yoxla database artıq varmı
+    char dummyPsw[18];
+    long dummyOffset;
+
+    if(helperCheckDbExists((char*)dbName, dummyPsw, &dummyOffset)){
+        printf("Xeta: '%s' bazasi artıq movcuddur!\n", dbName);
+        return false;
+    }
+
+    // əsas sistem qovluğu
+    platform_create_dir(MASTER_DIR);
+
+    // database qovluğu
+    char dbPath[256];
+    snprintf(dbPath, sizeof(dbPath), "%s/%s", MASTER_DIR, dbName);
+
+    platform_create_dir(dbPath);
+
+    // metadata qovluğu
+    char metaFolder[256];
+    snprintf(metaFolder, sizeof(metaFolder), "%s/metadata", dbPath);
+
     platform_create_dir(metaFolder);
+
+    // tables qovluğu
+    char tablesFolder[256];
+    snprintf(tablesFolder, sizeof(tablesFolder), "%s/tables", dbPath);
+
     platform_create_dir(tablesFolder);
 
-    // 3. Master master_dbs.db qeydiyyat faylını yaradırıq
-    char masterPath[256];
-    platform_format_path(masterPath, sizeof(masterPath), dbName, "", "master_dbs.db");
-    
-    FILE *f = fopen(masterPath, "ab+");
-    if(f) fclose(f);
-    
+    // registry əlavə et
+    DBRegistry reg;
+    memset(&reg, 0, sizeof(DBRegistry));
+
+    reg.is_deleted = 0;
+
+    strncpy(reg.db_name, dbName, sizeof(reg.db_name)-1);
+    strncpy(reg.db_psw, password, sizeof(reg.db_psw)-1);
+
+    FILE *master = fopen(MASTER_FILE, "ab");
+
+    if(!master){
+        printf("Xeta: master registry acilmadi!\n");
+        return false;
+    }
+
+    fwrite(&reg, sizeof(DBRegistry), 1, master);
+
+    fclose(master);
+
     printf("Baza strukturu ugurla hazirlandi (%s)\n", dbName);
+
     return true;
 }
 
