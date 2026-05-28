@@ -16,6 +16,9 @@
 #define TYPE_UINT8     3
 #define TYPE_CHAR      4
 
+
+
+
 char current_db_path[128] = ""; 
 char current_db_name[18] = "";
 // uint8_t getTableIdByName(const char *tableName);
@@ -133,24 +136,60 @@ uint8_t getTypeId(char *typeStr);
 // ====================================================================
 
 // Platformaya uyğun Qovluq (Directory) yaradılması
-bool platform_create_dir(const char *dir_path) {
-    #if defined(PLATFORM_ESP32)
-        // ESP32 (LittleFS) daxilində virtual olaraq qovluq iyerarxiyası avtomatik idarə olunur.
-        // Fiziki olaraq qovluq yaratmağa ehtiyac yoxdur, birbaşa faylı yazmaq kifayətdir.
-        return true; 
-    #elif defined(PLATFORM_LINUX)
-        // Linux və Raspberry üçün icazələr (0777 - Oxuma/Yazma/İcra) ilə qovluq açırıq
-        struct stat st = {0};
-        if (stat(dir_path, &st) == -1) {
-            return mkdir(dir_path, 0777) == 0;
+// bool platform_create_dir(const char *dir_path) {
+//     #if defined(PLATFORM_ESP32)
+//         // ESP32 (LittleFS) daxilində virtual olaraq qovluq iyerarxiyası avtomatik idarə olunur.
+//         // Fiziki olaraq qovluq yaratmağa ehtiyac yoxdur, birbaşa faylı yazmaq kifayətdir.
+//         return true; 
+//     #elif defined(PLATFORM_LINUX)
+//         // Linux və Raspberry üçün icazələr (0777 - Oxuma/Yazma/İcra) ilə qovluq açırıq
+//         struct stat st = {0};
+//         if (stat(dir_path, &st) == -1) {
+//             return mkdir(dir_path, 0777) == 0;
+//         }
+//         return true;
+//     #elif defined(PLATFORM_WINDOWS)
+//         // Windows üçün _mkdir funksiyası
+//         if (_access(dir_path, 0) == -1) {
+//             return _mkdir(dir_path) == 0;
+//         }
+//         return true;
+//     #endif
+// }
+
+
+// void platform_create_dir(const char* path) {
+//     #if defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
+//         // ESP32 üçün standart mkdir İŞLƏMİR! Mütləq LittleFS çağırılmalıdır:
+//         if (!LittleFS.exists(path)) {
+//             if (LittleFS.mkdir(path)) {
+//                 Serial.printf("[Sistem] Qovluq ugurla yaradildi: %s\n", path);
+//             } else {
+//                 Serial.printf("[Sistem] XƏTA: %s qovlugu yaradıla bilmedi!\n", path);
+//             }
+//         }
+//     #elif defined(_WIN32)
+//         _mkdir(path);
+//     #else
+//         mkdir(path, 0777);
+//     #endif
+// }
+
+
+void platform_create_dir(const char* path) {
+    #if defined(TARGET_PLATFORM_ESP32)
+        // Əgər ESP32 seçilibsə, mütləq LittleFS-in öz metodu işləməlidir!
+        if (!LittleFS.exists(path)) {
+            if (LittleFS.mkdir(path)) {
+                Serial.printf("[Sistem] Qovluq ugurla yaradildi: %s\n", path);
+            } else {
+                Serial.printf("[Sistem] XƏTA: %s qovlugu yaradila bilmedi!\n", path);
+            }
         }
-        return true;
-    #elif defined(PLATFORM_WINDOWS)
-        // Windows üçün _mkdir funksiyası
-        if (_access(dir_path, 0) == -1) {
-            return _mkdir(dir_path) == 0;
-        }
-        return true;
+    #elif defined(TARGET_PLATFORM_WINDOWS)
+        _mkdir(path); // Windows üçün
+    #elif defined(TARGET_PLATFORM_LINUX)
+        mkdir(path, 0777); // Linux üçün
     #endif
 }
 

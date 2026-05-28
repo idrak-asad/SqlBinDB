@@ -21,25 +21,28 @@
 // #include <string.h>
 // #include <stdbool.h>
 
+#define TARGET_PLATFORM_ESP32      // <--- ESP32 üçün bunu aktiv et
+// #define TARGET_PLATFORM_WINDOWS   // <--- Windows üçün bunu aktiv et
+// #define TARGET_PLATFORM_LINUX     // <--- Linux üçün bunu aktiv et
+
 // ====================================================================
 // 1. PLATFORMA TƏYİNATI VƏ KİTABXANALARININ ÇAĞIRILMASI
 // ====================================================================
-#if defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
+// Müvafiq kitabxanaların qoşulması
+#if defined(TARGET_PLATFORM_ESP32)
     #define PLATFORM_ESP32
     #include "LittleFS.h"
-
-#elif defined(__linux__) || defined(__raspberry_pi__)
+#elif defined(TARGET_PLATFORM_LINUX)
     #define PLATFORM_LINUX
     #include <sys/stat.h>
     #include <sys/types.h>
     #include <unistd.h>
-
-#elif defined(_WIN32) || defined(_WIN64)
+#elif defined(TARGET_PLATFORM_WINDOWS)
     #define PLATFORM_WINDOWS
-    #include <direct.h>  // Windows-da qovluq yaratmaq üçün (_mkdir)
+    #include <direct.h>
     #include <io.h>
     #include <ctype.h>
-    #include <stdint.h>  // uint8_t, uint32_t tipləri üçün
+    #include <stdint.h>
 #endif
 
 

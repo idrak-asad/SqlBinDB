@@ -1,5 +1,14 @@
-#define MASTER_DIR "/sqlBinDB"
-#define MASTER_FILE "/sqlBinDB/master_dbs.db"
+// #define MASTER_DIR "/sqlBinDB"
+// #define MASTER_FILE "/sqlBinDB/master_dbs.db"
+
+#if defined(TARGET_PLATFORM_ESP32)
+    #define MASTER_DIR "/sqlBinDB"
+    #define MASTER_FILE "/sqlBinDB/master_dbs.db"
+#else
+    // Windows və Linux üçün (Qarşısında '/' olmadan)
+    #define MASTER_DIR "sqlBinDB"
+    #define MASTER_FILE "sqlBinDB/master_dbs.db"
+#endif
 
 // FUNKSİYA PROTOTİPLƏRİ
 void initSystem();
