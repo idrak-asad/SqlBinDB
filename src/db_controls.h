@@ -2,8 +2,8 @@
 // #define MASTER_FILE "/sqlBinDB/master_dbs.db"
 
 #if defined(TARGET_PLATFORM_ESP32)
-    #define MASTER_DIR "/sqlBinDB"
-    #define MASTER_FILE "/sqlBinDB/master_dbs.db"
+    #define MASTER_DIR "sqlBinDB"
+    #define MASTER_FILE "sqlBinDB/master_dbs.db"
 #else
     // Windows və Linux üçün (Qarşısında '/' olmadan)
     #define MASTER_DIR "sqlBinDB"
@@ -65,8 +65,8 @@ void initSystem() {
 
         // 2. Qovluğu yoxlayırıq və LittleFS vasitəsilə mütləq yaradırıq
         // (VFS səviyyəsində açılması üçün önündəki /littlefs hissəsini təmizləyirik)
-        if (!LittleFS.exists("/sqlBinDB")) {
-            LittleFS.mkdir("/sqlBinDB");
+        if (!LittleFS.exists("sqlBinDB")) {
+            LittleFS.mkdir("sqlBinDB");
         }
 
         // 3. Əgər master fayl ümumiyyətlə yoxdursa, əvvəlcə daxili metodla yaradıb bağlayırıq
@@ -117,7 +117,7 @@ bool createDb(const char *DbName, const char *DbPsw, bool reCreate) {
     // 2. Platformaya uyğun olaraq qovluq yollarını və daxili strukturları təyin edirik
     #if defined(TARGET_PLATFORM_ESP32)
         // ESP32 daxili VFS (fopen) üçün mütləq /littlefs prefiksini tələb edir
-        snprintf(current_db_path, sizeof(current_db_path), "/littlefs/%s", DbName);
+        snprintf(current_db_path, sizeof(current_db_path), "/littlefs/sqlBinDB/%s", DbName);
         
         // LittleFS-in özünün tanıması və qovluq yaratması üçün xam yollar (önündə /littlefs olmadan)
         char rawDbDir[64], rawMetaDir[64], rawTablesDir[64];
@@ -131,7 +131,7 @@ bool createDb(const char *DbName, const char *DbPsw, bool reCreate) {
         if (!LittleFS.exists(rawTablesDir)) LittleFS.mkdir(rawTablesDir);
     #else
         // Windows və ya Linux mühiti üçün standart nisbi yollar
-        snprintf(current_db_path, sizeof(current_db_path), "%s", DbName);
+        snprintf(current_db_path, sizeof(current_db_path), "sqlBinDB%s", DbName);
         char metaPath[256], tablesPath[256];
         snprintf(metaPath, sizeof(metaPath), "%s/metadata", current_db_path);
         snprintf(tablesPath, sizeof(tablesPath), "%s/tables", current_db_path);
