@@ -72,6 +72,8 @@ Maintains data integrity layout layers across complex storage grids.
 
 
 
+
+
 # SqlBinDB — Ultra-Yüngül Daxili Binar Relyasiyalı Verilənlər Bazası Mühərriki
 
 [![Lisenziya: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -100,10 +102,49 @@ Təkmilləşdirilmiş aparat abstraksiya təbəqəsi (HAL) sayəsində standart 
 
 ---
 
-## 🛠️ Modulyar Alt
+## 🛠️ Modulyar Alt Sistemlər və Funksionallıqlar
 
-Delete: deleteRows(..., hardDelete) funksiyası unikal parametrlərə malikdir:
+### 1. Database (Baza) Reyestr Modulu (`db_controls.h`)
+Mərkəzi idarəetmə mərkəzi (`master_dbs.db`) vasitəsilə eyni mühitdə çoxlu verilənlər bazası kataloqlarını və onların təhlükəsizliyini idarə edir.
+* `initSystem()`: Virtual yaddaş bölmələrini (LittleFS/Lokal disk) başladır və sistem qovluq strukturlarını sazlayır.
+* `createDb(DbName, DbPsw, reCreate)`: Şifrəli mərkəzi qeydiyyatla təcrid olunmuş yeni binar baza strukturlarını və daxili metadata qovluqlarını yaradır.
+* `connectDb(DbName, DbPsw)`: Giriş şifrəsini doğrulayaraq sistemi cari aktiv işçi yoluna (`current_db_path`) bağlayır.
 
-hardDelete = 1 (CASCADE): Valideyn cədvəldən sətir silindikdə, uşaq cədvəldə ona bağlı olan bütün sətirləri rekursiv olaraq avtomatik silir.
+### 2. Yüksək Sıxlıqlı Table (Cədvəl) Sxemləri (`table_controls.h`)
+Cədvəl sxemlərini dinamik olaraq birbaşa cədvəl faylının daxili başlıq seqmentinə binar olaraq qeyd edir.
+* `createTable(...)`: Sütun tiplərini (`INT`, `UINT32`, `UINT8`, `CHAR`) və sahə məhdudiyyətlərini qəbul edərək fiziki binar cədvəl formatını strukturlaşdırır.
+* `dropTable(tableName, hardDrop)`: Cədvəlləri sistemdən tamamilə silir; daxili `CASCADE` modulu sayəsində asılılıqları təhlükəsiz şəkildə təmizləyir.
+* `selectTables(tableName)`: Cədvəlin daxili raw sxemini və sütun konfiqurasiyalarını vizual olaraq terminal loqlarına çıxarır.
 
-hardDelete = 2 (RESTRICT/SET NULL): Uşaq cədvəllərə toxunmadan birbaşa özünü soft-delete edir.
+### 3. Sürətləndirilmiş İndeksləmə Mühərriki (`index_controls.h`)
+Axtarış və süzgəcləmə əməliyyatlarını sürətləndirmək üçün xüsusi binar sürətli keçid indeks xətləri yaradır.
+* `createIndex(tableName, columnName)`: Müvafiq sütun üçün avtomatlaşdırılmış `.idx` binar indeks faylı formalaşdırır və mərkəzi metadata qatına bağlayır.
+* `resetTableIndexes(tableName)`: Cədvəl silindikdə və ya yenidən yaradıldıqda ona aid olan bütün fiziki binar indeks fayllarını diskdən təmizləyir.
+
+### 4. Relyasiyalı Struktur Xəritəsi (`relation_controls.h`)
+Mürəkkəb saxlama şəbəkələrində məlumatların bir-biri ilə əlaqəsini və bütövlüyünü (Referential Integrity) qoruyur.
+* `createRelation(parentTable, parentCol, childTable, childCol)`: Cədvəllər arasında **One-to-Many (Birin-Çoxa)** və **Many-to-Many (Çoxun-Çoxa)** əlaqə strukturlarını backend səviyyəsində birbaşa `relations.db` faylına qeyd edir.
+
+### 5. Təkmil CRUD və Məhdudiyyətlər Çərçivəsi (`data_controls.h`)
+* **Create (Insert):** Məlumat yazılmazdan öncə `PRIMARY KEY` (Unikallıq), `NOT NULL` və `UNIQUE` binar məhdudiyyətlərini real vaxt rejimində yoxlayır və təsdiqləyir.
+* **Read (Select):** Sətirləri daxili şərt mühərriki (`=`, `>`, `<`, `!`, `LIKE` mətn axtarışı) vasitəsilə diskdən axın rejimində süzgəcdən keçirərək oxuyur.
+* **Update:** Mövcud binar bayt ardıcıllıqlarını digər bloklara toxunmadan birbaşa fayl daxilindəki ünvanında (in-place) modifikasiya edir.
+* **Delete:** Məlumatların silinməsini xüsusi relyasiyalı kaskad parametrləri ilə idarə edir:
+  * `hardDelete = 1 (CASCADE)`: Valideyn sətir silindikdə, uşaq cədvəldə ona bağlı olan bütün verilənləri rekursiv olaraq avtomatik tapır və silir.
+  * `hardDelete = 2 (RESTRICT / SET NULL)`: Silmə əməliyyatını digər cədvəllərə toxunmadan sırf hədəf cədvəlin öz daxilində izolyasiya edir.
+
+---
+
+## 📋 Texniki Parametrlər və Spesifikasiyalar
+
+| Göstərici / Özəllik | Texniki İmkan və Tutum |
+| :--- | :--- |
+| **Dil Standartı** | Saf ANSI C / C++ uyğun kompilyasiya |
+| **Maksimum Sütun Sayı**| Sxem üzrə 15 ədəd xüsusi təyin olunmuş sahə |
+| **Dəstəklənən Tiplər**| 8-bit, 32-bit Tam Ədədlər (Signed/Unsigned), Sabit Simvol Massivləri |
+| **Maksimum Sətir Tutumu** | Hədd yoxdur (Sırf fiziki Flash/Disk tutumu qədər) |
+| **Asılılıq Rejimi** | 100% Standalone (Nə SQLite, nə də başqa kitabxana tələb olunmur) |
+| **Saxlama Modeli**| Birbaşa Diskə Sıxlaşdırılmış Binar Serializasiya Sxemi |
+
+
+
