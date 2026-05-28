@@ -1,0 +1,19 @@
+{
+    "name": "SqlBinDB",
+    "version": "1.0.0",
+    "description": "ESP32, Linux ve Windows üçün binar, relyasiyalı ve indeksli qənaətcil lokal verilənlər bazası mühərriki.",
+    "keywords": "database, binary, storage, esp32, embedded, relational, index",
+    "authors": [
+        {
+            "name": "Elcan",
+            "email": "your-email@example.com",
+            "maintainer": true
+        }
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/yourusername/SqlBinDB.git"
+    },
+    "frameworks": "*",
+    "platforms": ["espressif32", "native"]
+}
