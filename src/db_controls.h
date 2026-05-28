@@ -185,7 +185,7 @@ bool createDb(const char *DbName, const char *DbPsw, bool reCreate) {
     memset(&reg, 0, sizeof(DBRegistry));
     reg.is_deleted = 0;
     strncpy(reg.db_name, DbName, sizeof(reg.db_name) - 1);
-    strncpy(reg.db_password, DbPsw, sizeof(reg.db_password) - 1);
+    strncpy(reg.db_psw, DbPsw, sizeof(reg.db_psw) - 1);
 
     if (reCreate && helperCheckDbExists((char *)DbName, checkPsw, &checkOffset)) {
         // Əgər RECREATE ediriksə, köhnə kaydın yerləşdiyi offsetə gedib birbaşa üzərinə yazırıq
