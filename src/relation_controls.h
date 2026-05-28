@@ -1,3 +1,9 @@
+// relation_controls.h
+#ifndef RELATION_CONTROLS_H
+#define RELATION_CONTROLS_H
+
+// #include "add_controls.h"
+
 
 
 bool createRelation(const char *parentTable, const char *parentCol, const char *childTable, const char *childCol) {
@@ -25,3 +31,5 @@ bool createRelation(const char *parentTable, const char *parentCol, const char *
     printf("Relyasiya ugurla quruldu: %s(%s) -> %s(%s)\n", parentTable, parentCol, childTable, childCol);
     return true;
 }
+
+#endif

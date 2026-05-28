@@ -1,21 +1,21 @@
+// select_controls.h
+#ifndef SELECT_CONTROLS_H
+#define SELECT_CONTROLS_H
+
+// #include "add_controls.h"
+
 
 // ====================================================================
 // 5. SELECT DATA (Məlumatları Oxumaq)
 // ====================================================================
 void selectData(const char *tableName) {
-    if (strlen(current_db_path) == 0) {
-        printf("XETA: Evvelce bir verilener bazasina qoshulun!\n");
-        return;
-    }
+    if (strlen(current_db_path) == 0) return;
 
     char tableFilePath[256];
     snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
 
     FILE *file = fopen(tableFilePath, "rb");
-    if (!file) {
-        printf("Error: '%s' cadvali oxunarken xeta!\n", tableName);
-        return;
-    }
+    if (!file) return;
 
     DBHeader header;
     fread(&header, sizeof(DBHeader), 1, file);
@@ -24,54 +24,80 @@ void selectData(const char *tableName) {
     fread(configs, sizeof(ColumnConfig), header.columnCount, file);
 
     printf("\n=== CADVEL DATA: %s ===\n", tableName);
-
-    // Başlıqları çıxarırıq
     for (int i = 1; i < header.columnCount; i++) {
         printf("%-15s\t", configs[i].columnName);
     }
-    printf("\n--------------------------------------------------\n");
+    printf("\n----------------------------------------------------------------------------------\n");
 
-    uint8_t *rowBuffer = (uint8_t *)malloc(header.rowSize);
+    uint8_t rowBuffer[512];
+    long startOffset = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
 
-    // Sətirləri yalnız mövcud rowCount qədər oxuyuruq
     for (uint32_t r = 0; r < header.rowCount; r++) {
+        fseek(file, startOffset + (r * header.rowSize), SEEK_SET);
         fread(rowBuffer, header.rowSize, 1, file);
 
-        uint8_t isDeleted = rowBuffer[0];
-        if (isDeleted == 1) continue; // Soft-delete filtri
+        if (rowBuffer[0] == 1) continue; // Silinmiş sətirləri keçirik
 
-        int offset = 1;
-
+        int currentOffset = 1;
         for (int i = 1; i < header.columnCount; i++) {
-            if (strcmp(configs[i].columnType, "uint32_t") == 0 || strcmp(configs[i].columnType, "int") == 0) {
-                uint32_t val;
-                memcpy(&val, rowBuffer + offset, 4);
-                printf("%-15u\t", val);
-                offset += 4;
-            }
-            else if (strcmp(configs[i].columnType, "uint8_t") == 0) {
-                uint8_t val;
-                memcpy(&val, rowBuffer + offset, 1);
-                printf("%-15u\t", val);
-                offset += 1;
-            }
-            else if (strncmp(configs[i].columnType, "char(", 5) == 0) {
-                int len = configs[i].byteSize;
-                char *strStr = (char *)malloc(len + 1);
-                memcpy(strStr, rowBuffer + offset, len);
-                strStr[len] = '\0';
-                printf("%-15s\t", strStr);
-                offset += len;
-                free(strStr);
+            if (configs[i].typeID == TYPE_INT || configs[i].typeID == TYPE_UINT32) {
+                uint32_t val = *(uint32_t *)(rowBuffer + currentOffset);
+                printf("%-15d\t", val);
+                currentOffset += 4;
+            } else if (configs[i].typeID == TYPE_TIMESTAMP) {
+                uint32_t ts = *(uint32_t *)(rowBuffer + currentOffset);
+                printf("%-15u (TS)\t", ts);
+                currentOffset += 4;
+            } else if (configs[i].typeID == TYPE_UINT8) {
+                uint8_t val = *(uint8_t *)(rowBuffer + currentOffset);
+                printf("%-15d\t", val);
+                currentOffset += 1;
+            } else if (configs[i].typeID == TYPE_FLOAT) {
+                float val = *(float *)(rowBuffer + currentOffset);
+                printf("%-15.2f\t", val);
+                currentOffset += 4;
+            } else if (configs[i].typeID == TYPE_FIXED_POINT) {
+                // SƏNİN METODUN: Diskdəki 2 baytlıq tam ədədi userə çıxaranda 100-ə bölüb real float edirik!
+                int16_t fixedVal = *(int16_t *)(rowBuffer + currentOffset);
+                float realFloat = (float)fixedVal / 100.0f;
+                printf("%-15.2f\t", realFloat);
+                currentOffset += 2;
+            } else if (configs[i].typeID == TYPE_DATETIME) {
+                BinaryDateTime dt;
+                memcpy(&dt, rowBuffer + currentOffset, sizeof(BinaryDateTime));
+                printf("%04d-%02d-%02d %02d:%02d:%02d\t", dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second);
+                currentOffset += sizeof(BinaryDateTime);
+            } else if (configs[i].typeID == TYPE_CHAR2) {
+                // Stack allocation sayəsində yaddaş çökməsi/leak problemi həll olundu
+                char tempStr[MAX_CHAR + 1] = {0};
+                memcpy(tempStr, rowBuffer + currentOffset, configs[i].dataSize);
+                printf("%-15s\t", tempStr);
+                currentOffset += configs[i].dataSize;
+            } else if (configs[i].typeID == TYPE_VARCHAR2) {
+                // VARCHAR2 OXUNMASI: Pointer offsetinə gedib ordan dynamic mətni oxuyuruq
+                uint32_t vOffset = *(uint32_t *)(rowBuffer + currentOffset);
+                char varcharPath[256];
+                snprintf(varcharPath, sizeof(varcharPath), "%s/tables/%s.varchardb", current_db_path, tableName);
+                
+                FILE *vFile = fopen(varcharPath, "rb");
+                char vStr[256] = {0};
+                if (vFile) {
+                    fseek(vFile, vOffset, SEEK_SET);
+                    uint16_t strLen;
+                    fread(&strLen, sizeof(uint16_t), 1, vFile);
+                    if (strLen > 255) strLen = 255;
+                    fread(vStr, 1, strLen, vFile);
+                    fclose(vFile);
+                }
+                printf("%-15s\t", vStr);
+                currentOffset += sizeof(uint32_t);
             }
         }
         printf("\n");
     }
-
-    free(rowBuffer);
     fclose(file);
-    printf("==================================================\n\n");
 }
+
 
 // ====================================================================
 // 6. DEBUG SELECT STAR (Bütün Binar Strukturu Görmək Üçün)
@@ -119,20 +145,20 @@ void debugSelectStar(const char *tableName) {
         for (int i = 1; i < header.columnCount; i++) {
             printf("[Bayt %02d] -> Sutun: %-12s | Deyer: ", offset, configs[i].columnName);
 
-            if (strcmp(configs[i].columnType, "uint32_t") == 0 || strcmp(configs[i].columnType, "int") == 0) {
+            if (configs[i].typeID == TYPE_UINT32 || configs[i].typeID == TYPE_INT ) {
                 uint32_t val;
                 memcpy(&val, rowBuffer + offset, 4);
                 printf("%u\n", val);
                 offset += 4;
             }
-            else if (strcmp(configs[i].columnType, "uint8_t") == 0) {
+            else if (configs[i].typeID == TYPE_UINT8 ) {
                 uint8_t val;
                 memcpy(&val, rowBuffer + offset, 1);
                 printf("%u\n", val);
                 offset += 1;
             }
-            else if (strncmp(configs[i].columnType, "char(", 5) == 0) {
-                int len = configs[i].byteSize;
+            else if (configs[i].typeID == TYPE_CHAR2 ) {
+                int len = configs[i].dataSize;
                 char *strStr = (char *)malloc(len + 1);
                 memcpy(strStr, rowBuffer + offset, len);
                 strStr[len] = '\0';
@@ -218,7 +244,7 @@ uint8_t selectWhere(const char *tableName, char *whereColumnsName[], void *where
                     foundIdx = i;
                     break;
                 }
-                currentOffset += configs[i].byteSize;
+                currentOffset += configs[i].dataSize;
             }
 
             if (foundIdx == -1) {
@@ -227,7 +253,7 @@ uint8_t selectWhere(const char *tableName, char *whereColumnsName[], void *where
             }
 
             // `compareValues` köməkçi funksiyamız ilə binar müqayisə edirik
-            if (!compareValues(rowBuffer + currentOffset, whereColumnsData[w], whereOperators[w], configs[foundIdx].columnType)) {
+            if (!compareValues(rowBuffer + currentOffset, whereColumnsData[w], whereOperators[w], configs[foundIdx].typeID)) {
                 allConditionsMatch = false;
                 break;
             }
@@ -237,19 +263,19 @@ uint8_t selectWhere(const char *tableName, char *whereColumnsName[], void *where
         if (allConditionsMatch || whereCount == 0) {
             int offset = 1;
             for (int i = 1; i < header.columnCount; i++) {
-                if (strcmp(configs[i].columnType, "uint32_t") == 0 || strcmp(configs[i].columnType, "int") == 0) {
+                if (configs[i].typeID == TYPE_UINT32 || configs[i].typeID == TYPE_INT) {
                     uint32_t val;
                     memcpy(&val, rowBuffer + offset, 4);
                     printf("%-15u\t", val);
                     offset += 4;
                 }
-                else if (strcmp(configs[i].columnType, "uint8_t") == 0) {
+                else if (configs[i].typeID == TYPE_UINT8) {
                     uint8_t val = rowBuffer[offset];
                     printf("%-15u\t", val);
                     offset += 1;
                 }
-                else if (strncmp(configs[i].columnType, "char(", 5) == 0) {
-                    int len = configs[i].byteSize;
+                else if (configs[i].typeID == TYPE_CHAR2) {
+                    int len = configs[i].dataSize;
                     char strStr[64] = {0}; // Müvəqqəti string buferi
                     memcpy(strStr, rowBuffer + offset, len);
                     printf("%-15s\t", strStr);
@@ -295,11 +321,11 @@ void selectJoin(const char *parentTable, const char *childTable, const char *par
     int pKeyOffset = 1, cKeyOffset = 1; // 0 is_deleted-dir
     for (int i = 1; i < pHead.columnCount; i++) {
         if (strcmp(pConfigs[i].columnName, parentKey) == 0) break;
-        pKeyOffset += pConfigs[i].byteSize;
+        pKeyOffset += pConfigs[i].dataSize;
     }
     for (int i = 1; i < cHead.columnCount; i++) {
         if (strcmp(cConfigs[i].columnName, childKey) == 0) break;
-        cKeyOffset += cConfigs[i].byteSize;
+        cKeyOffset += cConfigs[i].dataSize;
     }
 
     printf("\n=== JOIN RESULT: %s + %s ===\n", parentTable, childTable);
@@ -338,3 +364,67 @@ void selectJoin(const char *parentTable, const char *childTable, const char *par
     fclose(cInst);
     printf("=========================================\n\n");
 }
+
+
+void selectJoinData(const char *parentTable, const char *childTable, const char *parentCol, const char *childCol) {
+    if (strlen(current_db_path) == 0) return;
+
+    char pPath[256], cPath[256];
+    snprintf(pPath, sizeof(pPath), "%s/tables/%s.db", current_db_path, parentTable);
+    snprintf(cPath, sizeof(cPath), "%s/tables/%s.db", current_db_path, childTable);
+
+    FILE *pInst = fopen(pPath, "rb");
+    FILE *cInst = fopen(cPath, "rb");
+    if (!pInst || !cInst) {
+        if (pInst) fclose(pInst);
+        if (cInst) fclose(cInst);
+        return;
+    }
+
+    DBHeader pHead, cHead;
+    fread(&pHead, sizeof(DBHeader), 1, pInst);
+    fread(&cHead, sizeof(DBHeader), 1, cInst);
+
+    uint8_t pTableId = getTableIdByName(parentTable);
+    uint8_t cTableId = getTableIdByName(childTable);
+    uint8_t pColId = getColumnIdByName(pTableId, parentCol);
+    uint8_t cColId = getColumnIdByName(cTableId, childCol);
+
+    // Sütunların offsetlərini hesablayaq (Sadəlik üçün qoşulma sütunlarının INT/ID olduğunu fərz edirik)
+    int pKeyOffset = 1; // Real layihədə sxem üzrə dövrlə hesablanmalıdır
+    int cKeyOffset = 1;
+
+    printf("\n=== INNER JOIN: %s <=> %s ===\n", parentTable, childTable);
+    printf("%-20s \t %-20s\n", "PARENT KEY", "CHILD DATA REF");
+    printf("-------------------------------------------------------\n");
+
+    uint8_t pBuffer[256], cBuffer[256];
+    long pStart = sizeof(DBHeader) + (sizeof(ColumnConfig) * pHead.columnCount);
+    long cStart = sizeof(DBHeader) + (sizeof(ColumnConfig) * cHead.columnCount);
+
+    for (uint32_t pi = 0; pi < pHead.rowCount; pi++) {
+        fseek(pInst, pStart + (pi * pHead.rowSize), SEEK_SET);
+        fread(pBuffer, pHead.rowSize, 1, pInst);
+        if (pBuffer[0] == 1) continue;
+
+        uint32_t pKeyValue = *(uint32_t *)(pBuffer + pKeyOffset);
+
+        // Hər bir parent sətir üçün child sətirlərini tək-tək diskdən yoxlayırıq (RAM-ı qorumaq üçün)
+        for (uint32_t ci = 0; ci < cHead.rowCount; ci++) {
+            fseek(cInst, cStart + (ci * cHead.rowSize), SEEK_SET);
+            fread(cBuffer, cHead.rowSize, 1, cInst);
+            if (cBuffer[0] == 1) continue;
+
+            uint32_t cKeyValue = *(uint32_t *)(cBuffer + cKeyOffset);
+
+            if (pKeyValue == cKeyValue) {
+                printf("%-20d \t MATCHED (Row %d)\n", pKeyValue, ci);
+            }
+        }
+    }
+
+    fclose(pInst);
+    fclose(cInst);
+}
+
+#endif

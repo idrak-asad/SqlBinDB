@@ -1,11 +1,26 @@
+// db_controls.h
+#ifndef DB_CONTROLS_H
+#define DB_CONTROLS_H
+
+// #include "add_controls.h"
+
+
 // #define MASTER_DIR "/sqlBinDB"
 // #define MASTER_FILE "/sqlBinDB/master_dbs.db"
 
 #if defined(TARGET_PLATFORM_ESP32)
+    #include "LittleFS.h"
     #define MASTER_DIR "sqlBinDB"
     #define MASTER_FILE "sqlBinDB/master_dbs.db"
 #else
-    // Windows və Linux üçün (Qarşısında '/' olmadan)
+    #include <sys/stat.h>
+    #include <sys/types.h>
+    #ifdef TARGET_PLATFORM_WINDOWS
+        #include <direct.h>
+        #define mkdir(path, mode) _mkdir(path)
+    #else
+        #include <unistd.h>
+    #endif
     #define MASTER_DIR "sqlBinDB"
     #define MASTER_FILE "sqlBinDB/master_dbs.db"
 #endif
@@ -15,7 +30,7 @@ void initSystem();
 bool createDb(const char *DbName, const char *DbPsw, bool reCreate);
 bool dropDb(char *DbName, char *DbPsw);
 bool connectDb(char *DbName, char *DbPsw);
-bool disConnectDb(char *DbName);
+bool disConnectDb();
 void selectDb(char *DbName);
 bool helperCheckDbExists(char *DbName, char *outPsw, long *outOffset);
 
@@ -56,155 +71,87 @@ bool helperCheckDbExists(char *DbName, char *outPsw, long *outOffset);
 
 
 void initSystem() {
-    #if defined(TARGET_PLATFORM_ESP32)
-        // 1. LittleFS-i rəsmi olaraq rədd edilmədən başladırıq
-        if(!LittleFS.begin(true)){
-            printf("XETA: LittleFS mount edile bilmedi!\n");
-            return;
-        }
-
-        // 2. Qovluğu yoxlayırıq və LittleFS vasitəsilə mütləq yaradırıq
-        // (VFS səviyyəsində açılması üçün önündəki /littlefs hissəsini təmizləyirik)
-        if (!LittleFS.exists("sqlBinDB")) {
-            LittleFS.mkdir("sqlBinDB");
-        }
-
-        // 3. Əgər master fayl ümumiyyətlə yoxdursa, əvvəlcə daxili metodla yaradıb bağlayırıq
-        if (!LittleFS.exists("/sqlBinDB/master_dbs.db")) {
-            File fWrite = LittleFS.open("/sqlBinDB/master_dbs.db", FILE_WRITE);
-            if(fWrite) {
-                fWrite.close();
-                printf("MASTER FAYLI ILKIN OLARAQ DISKDE YARADILDI.\n");
-            }
-        }
-    #else
-        // Windows/Linux üçün köhnə standart qovluq yaratma
-        platform_create_dir(MASTER_DIR);
-    #endif
-
-    // 4. İndi standart fopen rəsmi VFS yolu ilə rədd edilmədən faylı aça biləcək
-    FILE *f = fopen(MASTER_FILE, "rb");
-    if(!f){
-        // Əgər fayl boşdursa və ya "rb" ilə açılmırsa, yazma+oxuma rejimində ("wb+") sıfırdan açırıq
-        f = fopen(MASTER_FILE, "wb+");
-        if(!f){
-            printf("Xeta: master registry acilmadi! (fopen hələ də NULL qayıtdı)\n");
-            return;
-        }
+#if defined(TARGET_PLATFORM_ESP32)
+    if (!LittleFS.begin(true)) {
+        printf("ESP32 XETA: LittleFS mount edilə bilmədi!\n");
+        return;
     }
-
-    fclose(f);
-    printf("Baza strukturu ugurla hazirlandi.\n");
+    if (!LittleFS.exists(MASTER_DIR)) {
+        LittleFS.mkdir(MASTER_DIR);
+    }
+#else
+    struct stat st = {0};
+    if (stat(MASTER_DIR, &st) == -1) {
+        mkdir(MASTER_DIR, 0777);
+    }
+#endif
+    FILE *f = fopen(MASTER_FILE, "ab+");
+    if (f) fclose(f);
 }
 
 // ===================================================================
 // CREATE DATABASE (Verilənlər Bazası Yaradılması - Tam ESP32/VFS Uyğun)
 // ===================================================================
 bool createDb(const char *DbName, const char *DbPsw, bool reCreate) {
-    char checkPsw[18];
-    long checkOffset;
-
-    // 1. Baza sistemdə artıq mövcuddurmu deyə yoxlayırıq
-    if (helperCheckDbExists((char *)DbName, checkPsw, &checkOffset)) {
-        if (!reCreate) {
-            printf("XETA: '%s' adinda verilenebler bazasi artıq sistemde movcuddur!\n", DbName);
-            return false;
-        } else {
-            printf("Melumat: '%s' bazasi mövcuddur, RECREATE (yenidən yaratma) aktivdir.\n", DbName);
-        }
-    }
-
-    // 2. Platformaya uyğun olaraq qovluq yollarını və daxili strukturları təyin edirik
-    #if defined(TARGET_PLATFORM_ESP32)
-        // ESP32 daxili VFS (fopen) üçün mütləq /littlefs prefiksini tələb edir
-        snprintf(current_db_path, sizeof(current_db_path), "/littlefs/sqlBinDB/%s", DbName);
-        
-        // LittleFS-in özünün tanıması və qovluq yaratması üçün xam yollar (önündə /littlefs olmadan)
-        char rawDbDir[64], rawMetaDir[64], rawTablesDir[64];
-        snprintf(rawDbDir, sizeof(rawDbDir), "/%s", DbName);
-        snprintf(rawMetaDir, sizeof(rawMetaDir), "/%s/metadata", DbName);
-        snprintf(rawTablesDir, sizeof(rawTablesDir), "/%s/tables", DbName);
-        
-        // Qovluqları növbə ilə təhlükəsiz yaradırıq
-        if (!LittleFS.exists(rawDbDir))    LittleFS.mkdir(rawDbDir);
-        if (!LittleFS.exists(rawMetaDir))  LittleFS.mkdir(rawMetaDir);
-        if (!LittleFS.exists(rawTablesDir)) LittleFS.mkdir(rawTablesDir);
-    #else
-        // Windows və ya Linux mühiti üçün standart nisbi yollar
-        snprintf(current_db_path, sizeof(current_db_path), "sqlBinDB%s", DbName);
-        char metaPath[256], tablesPath[256];
-        snprintf(metaPath, sizeof(metaPath), "%s/metadata", current_db_path);
-        snprintf(tablesPath, sizeof(tablesPath), "%s/tables", current_db_path);
-        
-        platform_create_dir(current_db_path);
-        platform_create_dir(metaPath);
-        platform_create_dir(tablesPath);
-    #endif
-
-    // 3. Verilənlər bazasının əsas struktur metadatalarını (tables.db və columns.db) ilkin binar olaraq yaradırıq
-    char tablesMetaPath[256], columnsMetaPath[256];
-    snprintf(tablesMetaPath, sizeof(tablesMetaPath), "%s/metadata/tables.db", current_db_path);
-    snprintf(columnsMetaPath, sizeof(columnsMetaPath), "%s/metadata/columns.db", current_db_path);
-
-    // "wb" rejimi faylı tam sıfırlayır və yenisini yazmaq üçün açır (Artıq fopen NULL qayıtmayacaq)
-    FILE *fT = fopen(tablesMetaPath, "wb");
-    FILE *fC = fopen(columnsMetaPath, "wb");
-
-    if (!fT || !fC) {
-        printf("XETA: Verilənlər bazasının daxili metadatası yaradıla bilmədi! (fopen xətası)\n");
-        if (fT) fclose(fT);
-        if (fC) fclose(fC);
-        return false;
-    }
-    fclose(fT);
-    fclose(fC);
-
-    // Əlavə olaraq münasibətlər (relations.db) və indekslər (indexes.db) metadatalarını yaradaq
-    char relMetaPath[256], idxMetaPath[256];
-    snprintf(relMetaPath, sizeof(relMetaPath), "%s/metadata/relations.db", current_db_path);
-    snprintf(idxMetaPath, sizeof(idxMetaPath), "%s/metadata/indexes.db", current_db_path);
+    initSystem();
     
-    FILE *fR = fopen(relMetaPath, "wb");
-    FILE *fI = fopen(idxMetaPath, "wb");
-    if (fR) fclose(fR);
-    if (fI) fclose(fI);
-
-    // 4. Yeni bazanın qeydiyyatını mərkəzi reyestrə (master_dbs.db) əlavə edirik və ya yeniləyirik
-    FILE *fMaster = fopen(MASTER_FILE, "rb+");
-    if (!fMaster) {
-        // Əgər master faylı hər hansı səbəbdən yoxdursa, "wb+" rejimi ilə yaradırıq
-        fMaster = fopen(MASTER_FILE, "wb+");
-    }
-
-    if (!fMaster) {
-        printf("XETA: Mərkəzi qeydiyyat faylı (master_dbs.db) açıla bilmədi!\n");
-        return false;
-    }
+    // Bazadan öncə mövcud olub-olmadığını yoxlayaq
+    FILE *f = fopen(MASTER_FILE, "rb+");
+    if (!f) return false;
 
     DBRegistry reg;
-    memset(&reg, 0, sizeof(DBRegistry));
-    reg.is_deleted = 0;
-    strncpy(reg.db_name, DbName, sizeof(reg.db_name) - 1);
-    strncpy(reg.db_psw, DbPsw, sizeof(reg.db_psw) - 1);
+    bool exists = false;
+    long offset = 0;
 
-    if (reCreate && helperCheckDbExists((char *)DbName, checkPsw, &checkOffset)) {
-        // Əgər RECREATE ediriksə, köhnə kaydın yerləşdiyi offsetə gedib birbaşa üzərinə yazırıq
-        fseek(fMaster, checkOffset, SEEK_SET);
-        fwrite(&reg, sizeof(DBRegistry), 1, fMaster);
-        printf("Məlumat: Reyestrdəki köhnə '%s' qeydi yeniləndi.\n", DbName);
-    } else {
-        // Tamamilə yeni bazadırsa, mərkəzi qeydiyyat faylının sonuna (Append) əlavə edirik
-        fseek(fMaster, 0, SEEK_END);
-        fwrite(&reg, sizeof(DBRegistry), 1, fMaster);
-        printf("Məlumat: Yeni '%s' bazası reyestrə uğurla əlavə edildi.\n", DbName);
+    while (fread(&reg, sizeof(DBRegistry), 1, f)) {
+        if (reg.is_deleted == 0 && strcmp(reg.db_name, DbName) == 0) {
+            exists = true;
+            if (!reCreate) {
+                fclose(f);
+                return true; // Artıq var və sıfırlamaq istəmirik
+            }
+            break;
+        }
+        offset += sizeof(DBRegistry);
     }
 
-    fclose(fMaster);
+    if (exists && reCreate) {
+        fseek(f, offset, SEEK_SET);
+        uint8_t del = 1;
+        fwrite(&del, 1, 1, f); // Köhnə qeydi soft-delete edirik
+    }
 
-    // Cari aktiv qoşulma adını təyin edirik
-    strncpy(current_db_name, DbName, sizeof(current_db_name) - 1);
-    printf("UĞURLU: '%s' Verilənlər Bazası rəsmi olaraq yaradıldı və qoşuldu!\n", DbName);
-    
+    // Yeni bazanı mərkəzi qeydiyyata yazaq
+    fseek(f, 0, SEEK_END);
+    DBRegistry newDb = {0};
+    strncpy(newDb.db_name, DbName, 17);
+    strncpy(newDb.db_password, DbPsw, 17);
+    fwrite(&newDb, sizeof(DBRegistry), 1, f);
+    fclose(f);
+
+    // Fiziki alt qovluq strukturlarını yaradaq (POSIX formatında)
+    char path[256];
+    snprintf(path, sizeof(path), "%s/%s", MASTER_DIR, DbName);
+#if defined(TARGET_PLATFORM_ESP32)
+    LittleFS.mkdir(path);
+    snprintf(path, sizeof(path), "%s/%s/tables", MASTER_DIR, DbName); LittleFS.mkdir(path);
+    snprintf(path, sizeof(path), "%s/%s/metadata", MASTER_DIR, DbName); LittleFS.mkdir(path);
+#else
+    mkdir(path, 0777);
+    snprintf(path, sizeof(path), "%s/%s/tables", MASTER_DIR, DbName); mkdir(path, 0777);
+    snprintf(path, sizeof(path), "%s/%s/metadata", MASTER_DIR, DbName); mkdir(path, 0777);
+#endif
+
+    // Metadata fayllarını sıfırdan yaradaq
+    snprintf(path, sizeof(path), "%s/%s/metadata/tables.db", MASTER_DIR, DbName);
+    FILE *f1 = fopen(path, "wb"); if (f1) fclose(f1);
+    snprintf(path, sizeof(path), "%s/%s/metadata/columns.db", MASTER_DIR, DbName);
+    FILE *f2 = fopen(path, "wb"); if (f2) fclose(f2);
+    snprintf(path, sizeof(path), "%s/%s/metadata/relations.db", MASTER_DIR, DbName);
+    FILE *f3 = fopen(path, "wb"); if (f3) fclose(f3);
+    snprintf(path, sizeof(path), "%s/%s/metadata/indexes.db", MASTER_DIR, DbName);
+    FILE *f4 = fopen(path, "wb"); if (f4) fclose(f4);
+
     return true;
 }
 
@@ -235,7 +182,7 @@ bool dropDb(char *DbName, char *DbPsw) {
 
   // Qoşuludurca bağlantını qırırıq
   if (strcmp(current_db_name, DbName) == 0) {
-    disConnectDb(DbName);
+    disConnectDb();
   }
 
   // 2. Fiziki qovluğu təmizləyirik
@@ -253,38 +200,34 @@ bool dropDb(char *DbName, char *DbPsw) {
 // CONNECT DATABASE
 // ====================================================================
 bool connectDb(char *DbName, char *DbPsw) {
-  char savedPsw[18];
-  long offset;
-  if (!helperCheckDbExists(DbName, savedPsw, &offset)) {
-    printf("Xeta: '%s' adinda verilenebler bazasi tapilmadi!\n", DbName);
-    return false;
-  }
+    FILE *f = fopen(MASTER_FILE, "rb");
+    if (!f) return false;
 
-  if (strcmp(savedPsw, DbPsw) != 0) {
-    printf("Xeta: Parol yalnisdir! Baglanti rədd edildi.\n", DbName);
-    return false;
-  }
+    DBRegistry reg;
+    bool found = false;
+    while (fread(&reg, sizeof(DBRegistry), 1, f)) {
+        if (reg.is_deleted == 0 && strcmp(reg.db_name, DbName) == 0 && strcmp(reg.db_password, DbPsw) == 0) {
+            found = true;
+            break;
+        }
+    }
+    fclose(f);
 
-  strncpy(current_db_name, DbName, 17);
-  snprintf(current_db_path, sizeof(current_db_path), "%s/%s", MASTER_DIR,
-           DbName);
-  printf("Ugurlu: '%s' bazasina baglanildi.\n", DbName);
-  return true;
+    if (found) {
+        strncpy(current_db_name, DbName, 17);
+        snprintf(current_db_path, sizeof(current_db_path), "%s/%s", MASTER_DIR, DbName);
+        return true;
+    }
+    return false;
 }
 
 // ====================================================================
 // DISCONNECT DATABASE
 // ====================================================================
-bool disConnectDb(char *DbName) {
-  if (strlen(current_db_name) == 0 || strcmp(current_db_name, DbName) != 0) {
-    printf("Xeberdarlig: Siz onsuz da '%s' bazasina bagli deyilsiniz.\n",
-           DbName);
-    return false;
-  }
-  memset(current_db_path, 0, sizeof(current_db_path));
-  memset(current_db_name, 0, sizeof(current_db_name));
-  printf("Ugurlu: '%s' verilenebler bazasindan ayrildiniz.\n", DbName);
-  return true;
+bool disConnectDb() {
+    memset(current_db_name, 0, sizeof(current_db_name));
+    memset(current_db_path, 0, sizeof(current_db_path));
+    return true;
 }
 
 // ====================================================================
@@ -307,7 +250,7 @@ void selectDb(char *DbName) {
     int count = 0;
     while (fread(&reg, sizeof(DBRegistry), 1, f)) {
       if (reg.is_deleted == 0) {
-        printf("%-20s\t%-20s\n", reg.db_name, reg.db_psw);
+        printf("%-20s\t%-20s\n", reg.db_name, reg.db_password);
         count++;
       }
     }
@@ -354,7 +297,7 @@ bool helperCheckDbExists(char *DbName, char *outPsw, long *outOffset) {
   while (fread(&reg, sizeof(DBRegistry), 1, f)) {
     if (reg.is_deleted == 0 && strcmp(reg.db_name, DbName) == 0) {
       if (outPsw)
-        strcpy(outPsw, reg.db_psw);
+        strcpy(outPsw, reg.db_password);
       if (outOffset)
         *outOffset = currentOffset;
       fclose(f);
@@ -366,4 +309,4 @@ bool helperCheckDbExists(char *DbName, char *outPsw, long *outOffset) {
   return false; // Tapılmadı və ya silinib
 }
 
-// #endif
+#endif

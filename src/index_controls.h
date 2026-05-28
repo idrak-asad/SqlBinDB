@@ -1,4 +1,8 @@
 
+#ifndef INDEX_CONTROLS_H
+#define INDEX_CONTROLS_H
+
+// #include "add_controls.h"
 
 // İstifadəçinin manual olaraq istənilən sütuna indeks əlavə etməsi üçün funksiya
 bool createIndex(const char *tableName, const char *columnName) {
@@ -8,8 +12,6 @@ bool createIndex(const char *tableName, const char *columnName) {
 
     char idxMetaPath[256];
     snprintf(idxMetaPath, sizeof(idxMetaPath), "%s/metadata/indexes.db", current_db_path);
-    
-    // Əgər artıq indeks varsa yenisini yaratma
     if (isColumnIndexed(tId, cId, NULL)) return true;
 
     FILE *f = fopen(idxMetaPath, "ab+");
@@ -24,13 +26,11 @@ bool createIndex(const char *tableName, const char *columnName) {
     fwrite(&meta, sizeof(IndexMeta), 1, f);
     fclose(f);
 
-    // Boş indeks faylını fiziki olaraq diskdə yaradaq
     char idxFilePath[256];
     snprintf(idxFilePath, sizeof(idxFilePath), "%s/tables/%s", current_db_path, meta.index_name);
     FILE *fIdx = fopen(idxFilePath, "wb");
     if (fIdx) fclose(fIdx);
 
-    printf("İndeks yaradıldı: %s sütunu üçün (%s)\n", columnName, meta.index_name);
     return true;
 }
 
@@ -147,8 +147,8 @@ bool insertRowsWithIndex(const char *tableName, void *dataPointer[], int dataCou
             FILE *fIdx = fopen(idxPath, "ab+");
             if (fIdx) {
                 IndexEntry entry;
-                entry.data_value = *(uint32_t *)dataPointer[c - 1]; // İndekslənən uint32_t dəyər
-                entry.file_pos = writePosition;                    // Sətrin fayldakı yeri
+                entry.key_value = *(uint32_t *)dataPointer[c - 1]; // İndekslənən uint32_t dəyər
+                entry.file_offset = writePosition;                    // Sətrin fayldakı yeri
                 
                 fwrite(&entry, sizeof(IndexEntry), 1, fIdx);
                 fclose(fIdx);
@@ -186,8 +186,8 @@ uint8_t selectWhereWithIndex(const char *tableName, char *whereColumnsName[], vo
 
     // İndeks faylını sürətlə darayırıq (Çox kiçik fayldır)
     while (fread(&entry, sizeof(IndexEntry), 1, fIdx)) {
-        if (entry.data_value == targetVal) {
-            targetFilePos = entry.file_pos;
+        if (entry.key_value == targetVal) {
+            targetFilePos = entry.file_offset;
             break;
         }
     }
@@ -218,7 +218,7 @@ uint8_t selectWhereWithIndex(const char *tableName, char *whereColumnsName[], vo
     if (rowBuffer[0] == 0) { // Silinməyibsə
         int offset = 1;
         for (int i = 1; i < header.columnCount; i++) {
-            if (strcmp(configs[i].columnType, "uint32_t") == 0) {
+            if (configs[i].typeID==TYPE_UINT32) {
                 uint32_t val; memcpy(&val, rowBuffer + offset, 4);
                 printf("%s: %u \t", configs[i].columnName, val);
                 offset += 4;
@@ -272,3 +272,75 @@ bool dropTableWithIndex(const char *tableName, int hardDrop) {
     // Sonra cədvəli tamamilə silirik
     return dropTable(tableName, hardDrop);
 }
+
+
+// İndeks faylına sıralı məlumat yazmaq (Insertion Sort məntiqi ilə binar faylda)
+void insertIntoIndexFile(const char *idxName, uint32_t keyValue, uint32_t offsetValue) {
+    char idxPath[256];
+    snprintf(idxPath, sizeof(idxPath), "%s/tables/%s", current_db_path, idxName);
+    
+    FILE *f = fopen(idxPath, "rb+");
+    if (!f) {
+        f = fopen(idxPath, "wb+"); // Yoxdursa yarat
+        if (!f) return;
+    }
+
+    fseek(f, 0, SEEK_END);
+    long fileSize = ftell(f);
+    int count = fileSize / sizeof(IndexEntry);
+
+    IndexEntry *entries = (IndexEntry *)malloc((count + 1) * sizeof(IndexEntry));
+    if (count > 0) {
+        fseek(f, 0, SEEK_SET);
+        fread(entries, sizeof(IndexEntry), count, f);
+    }
+
+    // Yeni elementi sıralı yerinə yerləşdirək
+    int i = count - 1;
+    while (i >= 0 && entries[i].key_value > keyValue) {
+        entries[i + 1] = entries[i];
+        i--;
+    }
+    entries[i + 1].key_value = keyValue;
+    entries[i + 1].file_offset = offsetValue;
+
+    // Fayla geri yazaq
+    freopen(idxPath, "wb", f);
+    fwrite(entries, sizeof(IndexEntry), count + 1, f);
+    fclose(f);
+    free(entries);
+}
+
+
+// BİNAR AXTARIŞ (Binary Search) - İndeks sayəsində diski saniyələr içində tarayır
+long binarySearchInIndex(const char *idxName, uint32_t targetKey) {
+    char idxPath[256];
+    snprintf(idxPath, sizeof(idxPath), "%s/tables/%s", current_db_path, idxName);
+    FILE *f = fopen(idxPath, "rb");
+    if (!f) return -1;
+
+    fseek(f, 0, SEEK_END);
+    long fileSize = ftell(f);
+    int low = 0;
+    int high = (fileSize / sizeof(IndexEntry)) - 1;
+
+    while (low <= high) {
+        int mid = low + (high - low) / 2;
+        fseek(f, mid * sizeof(IndexEntry), SEEK_SET);
+        IndexEntry entry;
+        fread(&entry, sizeof(IndexEntry), 1, f);
+
+        if (entry.key_value == targetKey) {
+            fclose(f);
+            return (long)entry.file_offset; // Tapılan sətirin real data faylındakı offseti
+        }
+        if (entry.key_value < targetKey) low = mid + 1;
+        else high = mid - 1;
+    }
+
+    fclose(f);
+    return -1; // Tapılmadı
+}
+
+
+#endif

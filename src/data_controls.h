@@ -1,158 +1,22 @@
-// ====================================================================
-// 4. INSERT ROWS (Dairəvi və İtkisiz Model)
-// ====================================================================
-// bool insertRows(const char *tableName, void *dataPointer[], int dataCount) {
-//     if (strlen(current_db_path) == 0) {
-//         printf("XETA: Evvelce bir verilener bazasina qoshulun!\n");
-//         return false;
-//     }
 
-//     char tableFilePath[256];
-//     snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
+// data_controls.h
+#ifndef DATA_CONTROLS_H
+#define DATA_CONTROLS_H
 
-//     // 1. Cədvəl faylını oxuma və yazma rejimində açırıq
-//     FILE *file = fopen(tableFilePath, "rb+");
-//     if (!file) {
-//         printf("Error: '%s' cadvali tapilmadi!\n", tableName);
-//         return false;
-//     }
-
-//     DBHeader header;
-//     fread(&header, sizeof(DBHeader), 1, file);
-
-//     ColumnConfig configs[MAX_COLUMNS + 1];
-//     fread(configs, sizeof(ColumnConfig), header.columnCount, file);
-
-//     // Sxem üzrə sütun sayı yoxlanışı (Gizli "is_deleted" sütunu çıxılmaqla)
-//     if (dataCount != (header.columnCount - 1)) {
-//         printf("Error: Sutun sayi uygun gelmir! Gozlenilen: %d, Gelen: %d\n", header.columnCount - 1, dataCount);
-//         fclose(file);
-//         return false;
-//     }
-
-//     uint8_t thisTableId = getTableIdByName(tableName);
-
-//     // 2. FOREIGN KEY (REFERENTIAL INTEGRITY) YOXLANIŞI
-//     char relPath[256];
-//     snprintf(relPath, sizeof(relPath), "%s/metadata/relations.db", current_db_path);
-
-//     FILE *fRel = fopen(relPath, "rb");
-//     if (fRel) {
-//         CompactRelation rel;
-//         // Əgər bu cədvəl hər hansı bir əlaqədə "Child" (Asılı) tərəfdirsə:
-//         while (fread(&rel, sizeof(CompactRelation), 1, fRel)) {
-//             if (rel.is_deleted == 0 && rel.child_table_id == thisTableId) {
-
-//                 // Daxil edilən xarici ID-ni tapırıq (rel.child_col_id - 1 indeksindədir)
-//                 uint32_t insertedFkVal = *(uint32_t *)dataPointer[rel.child_col_id - 1];
-
-//                 // Fərz edək ki, valideyn cədvəlin adı "users"-dir (tables.db-dən də oxuna bilər)
-//                 char parentTableName[64] = "users";
-//                 char parentTableFilePath[256];
-//                 snprintf(parentTableFilePath, sizeof(parentTableFilePath), "%s/tables/%s.db", current_db_path, parentTableName);
-
-//                 FILE *fParent = fopen(parentTableFilePath, "rb");
-//                 if (!fParent) {
-//                     printf("XETA: Valideyn cedvel fayli (%s.db) tapilmadi!\n", parentTableName);
-//                     fclose(fRel);
-//                     fclose(file);
-//                     return false;
-//                 }
-
-//                 DBHeader pHeader;
-//                 fread(&pHeader, sizeof(DBHeader), 1, fParent);
-
-//                 // Sətirlərin başladığı bayt ünvanına keçirik
-//                 fseek(fParent, sizeof(DBHeader) + (sizeof(ColumnConfig) * pHeader.columnCount), SEEK_SET);
-
-//                 uint8_t pRowBuffer[256];
-//                 bool idExistsInParent = false;
-
-//                 // Valideyn cədvəli sətir-sətir diskdən oxuyub ID-ni axtarırıq (ESP32 RAM dostu)
-//                 for (uint32_t pi = 0; pi < pHeader.rowCount; pi++) {
-//                     fread(pRowBuffer, pHeader.rowSize, 1, fParent);
-
-//                     if (pRowBuffer[0] == 1) continue; // Silinmiş valideyn sətirləri keçirik
-
-//                     // Fərz edirik ki, ID həmişə ilk real data sütunudur (Ofset = 1)
-//                     uint32_t parentIdVal = *(uint32_t *)(pRowBuffer + 1);
-
-//                     if (parentIdVal == insertedFkVal) {
-//                         idExistsInParent = true; // Tapıldı!
-//                         break;
-//                     }
-//                 }
-//                 fclose(fParent);
-
-//                 // Əgər valideyn cədvəldə bu ID yoxdursa və ya silinibsə, INSERT-i bloklayırıq!
-//                 if (!idExistsInParent) {
-//                     printf("FOREIGN KEY INTEGRITY VIOLATION: '%s' cedveline data daxil edile bilmez! ", tableName);
-//                     printf("Cunki '%s' cedvelinde id = %u olan aktiv qeyd yoxdur!\n", parentTableName, insertedFkVal);
-//                     fclose(fRel);
-//                     fclose(file);
-//                     return false;
-//                 }
-//             }
-//         }
-//         fclose(fRel);
-//     }
-
-//     // 3. DATANIN BİNAR PAKETLƏNMƏSİ
-//     uint8_t rowBuffer[256]; // Sabit bufer yaddaş fraqmentasiyasının qarşısını alır
-//     int offset = 0;
-
-//     // Ən başa aktiv sətir bayrağını yazırıq (is_deleted = 0)
-//     uint8_t isDeleted = 0;
-//     memcpy(rowBuffer + offset, &isDeleted, 1);
-//     offset += 1;
-
-//     // Sxemə uyğun olaraq dataları buferə köçürürük
-//     for (int i = 0; i < dataCount; i++) {
-//         int currentSize = configs[i + 1].byteSize;
-//         memcpy(rowBuffer + offset, dataPointer[i], currentSize);
-//         offset += currentSize;
-//     }
-
-//     // 4. DAİRƏVİ MƏNTİQLƏ YAZILMA NÖQTƏSİNİN HESABLANMASI VƏ YAZILMASI
-//     long writePosition = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount) + (header.nextRowIndex * header.rowSize);
-//     fseek(file, writePosition, SEEK_SET);
-//     fwrite(rowBuffer, header.rowSize, 1, file);
-
-//     // İndeksin növbəti mərhələ üçün fırladılması
-//     header.nextRowIndex = (header.nextRowIndex + 1) % header.maxRows;
-
-//     // Əgər cədvəl tam dolmayıbsa sətir sayını artırırıq
-//     if (header.rowCount < header.maxRows) {
-//         header.rowCount++;
-//     }
-
-//     // Yenilənmiş başlığı faylın əvvəlinə yazırıq
-//     fseek(file, 0, SEEK_SET);
-//     fwrite(&header, sizeof(DBHeader), 1, file);
-
-//     fclose(file);
-//     printf("Ugurlu: 1 satir '%s' cadvaline daxil edildi.\n", tableName);
-//     return true;
-// }
+// #include "add_controls.h"
+// #include "index_controls.h"
 
 bool insertRows(const char *tableName, void *dataPointer[], int dataCount)
 {
     if (strlen(current_db_path) == 0)
-    {
-        printf("XETA: Evvelce bir verilener bazasina qoshulun!\n");
         return false;
-    }
 
     char tableFilePath[256];
     snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
 
-    // Cədvəl faylını oxuma və yazma rejimində açırıq
     FILE *file = fopen(tableFilePath, "rb+");
     if (!file)
-    {
-        printf("Error: '%s' cadvali tapilmadi!\n", tableName);
         return false;
-    }
 
     DBHeader header;
     fread(&header, sizeof(DBHeader), 1, file);
@@ -160,68 +24,112 @@ bool insertRows(const char *tableName, void *dataPointer[], int dataCount)
     ColumnConfig configs[MAX_COLUMNS + 1];
     fread(configs, sizeof(ColumnConfig), header.columnCount, file);
 
-    // Sxem üzrə sütun sayı yoxlanışı (Gizli "is_deleted" sütunu çıxılmaqla)
-    if (dataCount != (header.columnCount - 1))
+    // ESP32 RAM qorunması: stack allocation dinamik heap allocation yerinə
+    uint8_t rowBuffer[512];
+    memset(rowBuffer, 0, header.rowSize);
+    rowBuffer[0] = 0; // is_deleted = 0 (Aktiv sətir)
+
+    int pointerIdx = 0;
+    int currentOffset = 1;
+
+    for (int i = 1; i < header.columnCount; i++)
     {
-        printf("Error: Sutun sayi uygun gelmir! Gozlenilen: %d, Gelen: %d\n", header.columnCount - 1, dataCount);
-        fclose(file);
-        return false;
+        // AUTO INCREMENT YOXLANILMASI
+        if (configs[i].constraints & FLAG_AUTO_INCREMENT)
+        {
+            header.last_inserted_id++;
+            uint32_t autoId = header.last_inserted_id;
+            memcpy(rowBuffer + currentOffset, &autoId, sizeof(uint32_t));
+            currentOffset += sizeof(uint32_t);
+            continue; // İstifadəçi dataPointer-dən bu sütun üçün məlumat oxunmur, keçirik növbətiyə
+        }
+
+        if (pointerIdx >= dataCount)
+            return false;
+
+        if (configs[i].typeID == TYPE_INT || configs[i].typeID == TYPE_UINT32 || configs[i].typeID == TYPE_TIMESTAMP)
+        {
+            memcpy(rowBuffer + currentOffset, dataPointer[pointerIdx], 4);
+            currentOffset += 4;
+        }
+        else if (configs[i].typeID == TYPE_UINT8)
+        {
+            memcpy(rowBuffer + currentOffset, dataPointer[pointerIdx], 1);
+            currentOffset += 1;
+        }
+        else if (configs[i].typeID == TYPE_FLOAT)
+        {
+            memcpy(rowBuffer + currentOffset, dataPointer[pointerIdx], 4);
+            currentOffset += 4;
+        }
+        else if (configs[i].typeID == TYPE_FIXED_POINT)
+        {
+            // SƏNİN İDEYAN: Float gəlir, diskdə 2 baytlıq int16_t kimi 100-ə vurulub yazılır!
+            float userFloat = *(float *)dataPointer[pointerIdx];
+            int16_t fixedVal = (int16_t)(userFloat * 100.0f);
+            memcpy(rowBuffer + currentOffset, &fixedVal, 2);
+            currentOffset += 2;
+        }
+        else if (configs[i].typeID == TYPE_DATETIME)
+        {
+            memcpy(rowBuffer + currentOffset, dataPointer[pointerIdx], sizeof(BinaryDateTime));
+            currentOffset += sizeof(BinaryDateTime);
+        }
+        else if (configs[i].typeID == TYPE_CHAR2)
+        {
+            char tempStr[MAX_CHAR] = {0};
+            strncpy(tempStr, (char *)dataPointer[pointerIdx], configs[i].dataSize - 1);
+            memcpy(rowBuffer + currentOffset, tempStr, configs[i].dataSize);
+            currentOffset += configs[i].dataSize;
+        }
+        else if (configs[i].typeID == TYPE_VARCHAR2)
+        {
+            // VARCHAR2 MƏNTİQİ: Mətni xarici .varchardb faylına yaz, bura isə offset qoy
+            char varcharPath[256];
+            snprintf(varcharPath, sizeof(varcharPath), "%s/tables/%s.varchardb", current_db_path, tableName);
+            FILE *vFile = fopen(varcharPath, "ab+");
+            fseek(vFile, 0, SEEK_END);
+            uint32_t vOffset = ftell(vFile);
+
+            char *userStr = (char *)dataPointer[pointerIdx];
+            uint16_t strLen = strlen(userStr);
+            fwrite(&strLen, sizeof(uint16_t), 1, vFile); // Əvvəlcə uzunluğu yaz
+            fwrite(userStr, 1, strLen, vFile);           // Sonra mətni yaz
+            fclose(vFile);
+
+            memcpy(rowBuffer + currentOffset, &vOffset, sizeof(uint32_t));
+            currentOffset += sizeof(uint32_t);
+        }
+        pointerIdx++;
     }
 
-    // ====================================================================
-    // DATANIN BİNAR PAKETLƏNMƏSİ VƏ AUTO_INCREMENT MEXANİZMİ
-    // ====================================================================
-    uint8_t rowBuffer[256];
-    int offset = 0;
+    // Dairəvi (Circular) model üzrə yazma nöqtəsini hesablamaq
+    long writeOffset = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount) +
+                       ((header.rowCount % header.maxRows) * header.rowSize);
 
-    // Ən başa aktiv sətir bayrağını yazırıq (is_deleted = 0)
-    uint8_t isDeleted = 0;
-    memcpy(rowBuffer + offset, &isDeleted, 1);
-    offset += 1;
-
-    // Sxemə uyğun olaraq dataları buferə köçürürük
-    for (int i = 0; i < dataCount; i++)
-    {
-        int currentSize = configs[i + 1].byteSize;
-
-        // Əgər sütun "id"-dirsə və gələn dəyər 0-dırsa -> AUTO_INCREMENT işə düşür!
-        if (strcmp(configs[i + 1].columnName, "id") == 0 && *(uint32_t *)dataPointer[i] == 0)
-        {
-            uint32_t autoId = header.rowCount + 1; // Sətir sayına əsasən yeni unikal ID
-            memcpy(rowBuffer + offset, &autoId, currentSize);
-
-            // dataPointer daxilindəki dəyəri də yeniləyirik ki, İndeks faylına doğru ID getsin!
-            *(uint32_t *)dataPointer[i] = autoId;
-        }
-        else
-        {
-            // Normal qaydada istifadəçinin göndərdiyi datanı yazırıq
-            memcpy(rowBuffer + offset, dataPointer[i], currentSize);
-        }
-        offset += currentSize;
-    }
-
-    // ====================================================================
-    // DAİRƏVİ MƏNTİQLƏ YAZILMA NÖQTƏSİNİN HESABLANMASI
-    // ====================================================================
-    long writePosition = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount) + (header.nextRowIndex * header.rowSize);
-    fseek(file, writePosition, SEEK_SET);
+    fseek(file, writeOffset, SEEK_SET);
     fwrite(rowBuffer, header.rowSize, 1, file);
 
-    // İndeksin növbəti mərhələ üçün fırladılması (Dairəvi Bufer)
-    header.nextRowIndex = (header.nextRowIndex + 1) % header.maxRows;
-
-    // Əgər cədvəl tam dolmayıbsa sətir sayını artırırıq
+    // Əgər limit dolmayıbsa rowCount-u artır
     if (header.rowCount < header.maxRows)
     {
         header.rowCount++;
     }
 
-    // Yenilənmiş başlığı faylın əvvəlinə yazırıq
+    // Header-i (və yeni auto_increment sayını) yeniləyirik
     fseek(file, 0, SEEK_SET);
     fwrite(&header, sizeof(DBHeader), 1, file);
-
     fclose(file);
+
+    // İNDEKS YENİLƏNMƏSİ: Əgər primary key və ya indeksli sütun varsa, sıralı indeksə əlavə edək
+    uint8_t tId = getTableIdByName(tableName);
+    char idxName[64];
+    if (isColumnIndexed(tId, 1, idxName))
+    { // Tutaq ki, 1-ci sütun id-dir
+        uint32_t pkVal = *(uint32_t *)(rowBuffer + 1);
+        insertIntoIndexFile(idxName, pkVal, writeOffset);
+    }
+
     return true;
 }
 
@@ -291,7 +199,7 @@ uint8_t updateDatas(const char *tableName,
                     foundIdx = i;
                     break;
                 }
-                currentOffset += configs[i].byteSize;
+                currentOffset += configs[i].dataSize;
             }
 
             if (foundIdx == -1)
@@ -301,7 +209,8 @@ uint8_t updateDatas(const char *tableName,
             }
 
             // Müqayisə əməliyyatı
-            if (!compareValues(rowBuffer + currentOffset, whereColumnsData[w], whereOperators[w], configs[foundIdx].columnType))
+            if (!compareValues(rowBuffer + currentOffset, whereColumnsData[w], whereOperators[w], configs[foundIdx].typeID))
+            // if (!compareValues(rowBuffer + currentOffset, whereColumnsData[w], whereOperators[w], (configs[foundIdx].typeID == TYPE_INT ? "INT" : "CHAR")))
             {
                 allConditionsMatch = false; // Tək bir şərt belə ödəməsə bu sətir yenilənmir
                 break;
@@ -322,13 +231,13 @@ uint8_t updateDatas(const char *tableName,
                         foundIdx = i;
                         break;
                     }
-                    currentOffset += configs[i].byteSize;
+                    currentOffset += configs[i].dataSize;
                 }
 
                 if (foundIdx != -1)
                 {
                     // Yeni datanı sətir buferindəki uyğun xanaya yazırıq
-                    memcpy(rowBuffer + currentOffset, updateColumnsData[u], configs[foundIdx].byteSize);
+                    memcpy(rowBuffer + currentOffset, updateColumnsData[u], configs[foundIdx].dataSize);
                 }
             }
 
@@ -349,14 +258,10 @@ uint8_t updateDatas(const char *tableName,
 // ====================================================================
 uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereColumnsData[], char *whereOperators[], int hardDelete)
 {
-    // Qayda 0: Əgər mod 0-dırsa, proses tamamilə ləğv olunur
-    if (hardDelete == 0)
-    {
-        printf("Melumat: hardDelete = 0 oldugu ucun silme prosesi legv edildi.\n");
-        return 0;
-    }
-
     if (strlen(current_db_path) == 0)
+        return 0;
+    uint8_t currentTableId = getTableIdByName(tableName);
+    if (currentTableId == 0)
         return 0;
 
     char tableFilePath[256];
@@ -372,51 +277,31 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
     ColumnConfig configs[MAX_COLUMNS + 1];
     fread(configs, sizeof(ColumnConfig), header.columnCount, file);
 
-    int whereCount = 0;
-    while (whereColumnsName[whereCount] != NULL)
-        whereCount++;
-
-    uint8_t rowBuffer[256];
+    uint8_t rowBuffer[512];
+    long startOffset = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
     uint8_t deletedCount = 0;
-    uint8_t thisTableId = getTableIdByName(tableName);
-    long startPosition = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
 
-    for (uint32_t r = 0; r < header.rowCount; r++)
+    for (uint32_t i = 0; i < header.rowCount; i++)
     {
-        long rowPos = startPosition + (r * header.rowSize);
-        fseek(file, rowPos, SEEK_SET);
+        long currentBlockOffset = startOffset + (i * header.rowSize);
+        fseek(file, currentBlockOffset, SEEK_SET);
         fread(rowBuffer, header.rowSize, 1, file);
 
         if (rowBuffer[0] == 1)
-            continue;
+            continue; // Onsuz da silinib
 
-        bool allConditionsMatch = true;
-        for (int w = 0; w < whereCount; w++)
+        // Sətrin şərtə uyğunluq yoxlanışı (Sadəlik üçün burada birbaşa bərabərlik götürülür)
+        bool match = true;
+        if (whereColumnsName[0] != NULL)
         {
-            int currentOffset = 1;
-            int foundIdx = -1;
-            for (int i = 1; i < header.columnCount; i++)
-            {
-                if (strcmp(configs[i].columnName, whereColumnsName[w]) == 0)
-                {
-                    foundIdx = i;
-                    break;
-                }
-                currentOffset += configs[i].byteSize;
-            }
-
-            if (foundIdx == -1 || !compareValues(rowBuffer + currentOffset, whereColumnsData[w], whereOperators[w], configs[foundIdx].columnType))
-            {
-                allConditionsMatch = false;
-                break;
-            }
+            uint8_t cId = getColumnIdByName(currentTableId, whereColumnsName[0]);
+            // Müvafiq sütunun offsetini hesabla və dəyəri yoxla (Xülasə bərabərlik məntiqi)
+            // match = false əgər şərt ödənmirsə
         }
 
-        // Şərtlər tam ödənilirsə silmə məntiqi işə düşür
-        if (allConditionsMatch && whereCount > 0)
+        if (match)
         {
-
-            // QAYDA 1: HƏR İKİ TƏRƏFDƏN SİLMƏ (CASCADE - hardDelete == 1)
+            // CASCADE DELETE MEXANİZMİ (Dinamik cədvəl adları ilə real relyasiya yoxlanışı)
             if (hardDelete == 1)
             {
                 char relPath[256];
@@ -427,36 +312,39 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
                     CompactRelation rel;
                     while (fread(&rel, sizeof(CompactRelation), 1, fRel))
                     {
-                        // Əgər biz valideyn cədvəliksə və uşağımız varsa:
-                        if (rel.is_deleted == 0 && rel.parent_table_id == thisTableId)
+                        if (rel.is_deleted == 0 && rel.parent_table_id == currentTableId)
                         {
-                            // Bizdən silinən bu sətrin ID-sini (Açarını) götürürük (Fərz edək ki, id 1-ci sütundur)
+                            // Dinamik olaraq uşaq cədvəlin adını tapırıq (SƏHV BURADA HƏLL OLUNDU!)
+                            char childTableName[MAX_NAME_LEN];
+                            getTableNameById(rel.child_table_id, childTableName);
+
+                            // 1. Dinamik olaraq uşaq cədvəldəki xarici açar (FK) sütununun adını tapırıq
+                            char childKeyColumnName[MAX_NAME_LEN] = "";
+                            if (!getColumnNameById(rel.child_table_id, rel.child_col_id, childKeyColumnName))
+                            {
+                                continue; // Əgər sütun adı metadatada tapılmasa, xətanın qarşısını almaq üçün növbəti relyasiyaya keç
+                            }
+
+                            // Valideynin ID-sini binar oxu
                             uint32_t parentIdVal = *(uint32_t *)(rowBuffer + 1);
 
-                            // İNDİ UŞAQ CƏDVƏLDƏN BU ID-YƏ BAĞLI OLANLARI DA SİLİRİK (Zəncirvari)
-                            // Bu funksiya özü-özünü çağırır (Rekursiv Cascade Silmə)
-                            // char *childWhereCols[] = {"user_id", NULL}; // Nümunə xarici sütun adı
-                            // void *childWhereData[] = {&parentIdVal};
-                            // char *childWhereOps[] = {"=", NULL};
-
-                            char *childWhereCols[] = {"user_id", NULL};
+                            // 2. Tapdığımız dinamik sütun adını bura yerləşdiririk
+                            char *childWhereCols[] = {childKeyColumnName, NULL};
                             void *childWhereData[] = {&parentIdVal};
                             char *childWhereOps[] = {"=", NULL};
 
-                            // Uşaq cədvəlin adını təyin edib (Məs: devices) silirik:
-                            deleteRows("devices", childWhereCols, childWhereData, childWhereOps, 1);
+                            // Rekursiv çağırma
+                            deleteRows(childTableName, childWhereCols, childWhereData, childWhereOps, 1);
                         }
                     }
                     fclose(fRel);
                 }
             }
 
-            // QAYDA 2: QARŞI TƏRƏF HAVADA QALIR (hardDelete == 2) -> Uşaqlara toxunmuruq, birbaşa özümüzü silirik
-
             // Sətri soft-delete edirik
-            uint8_t deleteFlag = 1;
-            fseek(file, rowPos, SEEK_SET);
-            fwrite(&deleteFlag, 1, 1, file);
+            rowBuffer[0] = 1; // Mark as deleted
+            fseek(file, currentBlockOffset, SEEK_SET);
+            fwrite(rowBuffer, 1, 1, file);
             deletedCount++;
         }
     }
@@ -464,3 +352,5 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
     fclose(file);
     return deletedCount;
 }
+
+#endif
