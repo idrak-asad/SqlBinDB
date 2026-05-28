@@ -23,34 +23,74 @@ bool helperCheckDbExists(char *DbName, char *outPsw, long *outOffset);
 // char current_db_path[128] = "";
 
 // Sistemi ilk dəfə işə salanda ana qovluğu yaradır
-void initSystem() {
+// void initSystem() {
 
-    // LittleFS mount
+//     // LittleFS mount
+//     if(!LittleFS.begin(true)){
+//         printf("LittleFS mount xetasi!\n");
+//         return;
+//     }
+
+//     // əsas qovluq
+//     platform_create_dir(MASTER_DIR);
+
+//     // master faylı yoxdursa yarat
+//     FILE *f = fopen(MASTER_FILE, "rb");
+
+//     if(!f){
+
+//         f = fopen(MASTER_FILE, "wb");
+
+//         if(!f){
+//             printf("MASTER FILE yaradila bilmedi!\n");
+//             return;
+//         }
+
+//         printf("MASTER FILE yaradildi.\n");
+//     }
+
+//     if(f)
+//         fclose(f);
+// }
+
+
+
+void initSystem() {
+    // 1. LittleFS başladılır
     if(!LittleFS.begin(true)){
         printf("LittleFS mount xetasi!\n");
         return;
     }
 
-    // əsas qovluq
+    // 2. Qovluq yaradılır
     platform_create_dir(MASTER_DIR);
 
-    // master faylı yoxdursa yarat
-    FILE *f = fopen(MASTER_FILE, "rb");
-
-    if(!f){
-
-        f = fopen(MASTER_FILE, "wb");
-
-        if(!f){
-            printf("MASTER FILE yaradila bilmedi!\n");
+    // 3. MASTER FAYLI ARDUINO METODU İLƏ YOXLA VƏ YARAT
+    // Əgər fayl yoxdursa, LittleFS ilə onu yaradırıq ki, fopen onu diskdə fiziki görə bilsin
+    if (!LittleFS.exists(MASTER_FILE)) {
+        File fWrite = LittleFS.open(MASTER_FILE, FILE_WRITE);
+        if(!fWrite){
+            printf("MASTER FILE yaradila bilmedi (LittleFS tərəfindən)!\n");
             return;
         }
-
-        printf("MASTER FILE yaradildi.\n");
+        printf("MASTER FILE ilkin olaraq yaradildi.\n");
+        fWrite.close(); // Faylı bağlayırıq ki, aşağıda fopen rahat açsın
     }
 
-    if(f)
-        fclose(f);
+    // 4. İndi standart fopen ilə təkrar yoxlayırıq (Artıq fayl mövcud olduğu üçün NULL qayıtmayacaq)
+    FILE *f = fopen(MASTER_FILE, "rb+");
+    if(!f){
+        // Əgər rb+ (oxuma və yazma) rejimində aça bilməsə, sadəcə "ab+" və ya "wb" sınayırıq
+        f = fopen(MASTER_FILE, "wb+");
+        if(!f) {
+            printf("Xeta: master registry acilmadi! (fopen hələ də NULL qayıtdı)\n");
+            return;
+        }
+    }
+
+    // Əgər bura çatdısa uğurla açılıb deməkdir
+    fclose(f);
+    printf("Baza strukturu ugurla hazirlandi\n");
 }
 
 // ====================================================================
