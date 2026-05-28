@@ -1,5 +1,5 @@
-#define MASTER_DIR "sqlBinDB"
-#define MASTER_FILE "sqlBinDB/master_dbs.db"
+#define MASTER_DIR "/sqlBinDB"
+#define MASTER_FILE "/sqlBinDB/master_dbs.db"
 
 // FUNKSİYA PROTOTİPLƏRİ
 void initSystem();
