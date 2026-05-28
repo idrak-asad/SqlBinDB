@@ -21,8 +21,8 @@
 // #include <string.h>
 // #include <stdbool.h>
 
-// #define TARGET_PLATFORM_ESP32      // <--- ESP32 üçün bunu aktiv et
-#define TARGET_PLATFORM_WINDOWS   // <--- Windows üçün bunu aktiv et
+#define TARGET_PLATFORM_ESP32      // <--- ESP32 üçün bunu aktiv et
+// #define TARGET_PLATFORM_WINDOWS   // <--- Windows üçün bunu aktiv et
 // #define TARGET_PLATFORM_LINUX     // <--- Linux üçün bunu aktiv et
 
 // ====================================================================
