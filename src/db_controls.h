@@ -301,26 +301,30 @@ void selectDb(char *DbName) {
 // ====================================================================
 // HELPER: Baza adını mərkəzi binar faylda axtaran daxili funksiya
 // ====================================================================
-bool helperCheckDbExists(char *DbName, char *outPsw, long *outOffset) {
-  FILE *f = fopen(MASTER_FILE, "rb");
-  if (!f)
-    return false;
+bool helperCheckDbExists(const char *DbName, char *outPsw, long *outOffset) {
+  // LittleFS ilə faylı oxumaq üçün açırıq
+  File f = LittleFS.open(MASTER_FILE, "r");
+  if (!f || f.isDirectory()) {
+      return false;
+  }
 
   DBRegistry reg;
   long currentOffset = 0;
-  while (fread(&reg, sizeof(DBRegistry), 1, f)) {
-    if (reg.is_deleted == 0 && strcmp(reg.db_name, DbName) == 0) {
-      if (outPsw)
-        strcpy(outPsw, reg.db_password);
-      if (outOffset)
-        *outOffset = currentOffset;
-      fclose(f);
-      return true; // Tapıldı və aktivdir
-    }
-    currentOffset += sizeof(DBRegistry);
+  bool found = false;
+
+  // fread əvəzinə f.read istifadə edirik
+  while (f.read((uint8_t*)&reg, sizeof(DBRegistry)) == sizeof(DBRegistry)) {
+      if (reg.is_deleted == 0 && strcmp(reg.db_name, DbName) == 0) {
+          if (outPsw) strcpy(outPsw, reg.db_psw);
+          if (outOffset) *outOffset = currentOffset;
+          found = true;
+          break;
+      }
+      currentOffset += sizeof(DBRegistry);
   }
-  fclose(f);
-  return false; // Tapılmadı və ya silinib
+  
+  f.close(); // fclose əvəzinə close()
+  return found;
 }
 
 #endif

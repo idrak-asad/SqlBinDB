@@ -14,9 +14,18 @@ bool insertRows(const char *tableName, void *dataPointer[], int dataCount)
     char tableFilePath[256];
     snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
 
-    FILE *file = fopen(tableFilePath, "rb+");
+    // "r+" həm oxumaq, həm də mövcud faylın üzərinə yazmaq üçündür
+    File file = LittleFS.open(tableFilePath, "r+");
     if (!file)
         return false;
+
+    // Müəyyən offsetə keçid edirik (SeekSet standart LittleFS makrosudur)
+    if (file.seek(currentBlockOffset, SeekSet))
+    {
+        file.write(rowBuffer, header.rowSize); // Bütün bloku binar olaraq yazır
+    }
+
+    file.close();
 
     DBHeader header;
     fread(&header, sizeof(DBHeader), 1, file);
@@ -149,12 +158,21 @@ uint8_t updateDatas(const char *tableName,
     char tableFilePath[256];
     snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
 
-    FILE *file = fopen(tableFilePath, "rb+");
+    // "r+" həm oxumaq, həm də mövcud faylın üzərinə yazmaq üçündür
+    File file = LittleFS.open(tableFilePath, "r+");
     if (!file)
     {
         printf("Error: '%s' cadvali tapilmadi!\n", tableName);
         return 0;
     }
+
+    // Müəyyən offsetə keçid edirik (SeekSet standart LittleFS makrosudur)
+    if (file.seek(currentBlockOffset, SeekSet))
+    {
+        file.write(rowBuffer, header.rowSize); // Bütün bloku binar olaraq yazır
+    }
+
+    file.close();
 
     DBHeader header;
     fread(&header, sizeof(DBHeader), 1, file);
@@ -267,9 +285,18 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
     char tableFilePath[256];
     snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
 
-    FILE *file = fopen(tableFilePath, "rb+");
+    // "r+" həm oxumaq, həm də mövcud faylın üzərinə yazmaq üçündür
+    File file = LittleFS.open(tableFilePath, "r+");
     if (!file)
-        return 0;
+        return false;
+
+    // Müəyyən offsetə keçid edirik (SeekSet standart LittleFS makrosudur)
+    if (file.seek(currentBlockOffset, SeekSet))
+    {
+        file.write(rowBuffer, header.rowSize); // Bütün bloku binar olaraq yazır
+    }
+
+    file.close();
 
     DBHeader header;
     fread(&header, sizeof(DBHeader), 1, file);
