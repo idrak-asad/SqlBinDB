@@ -47,12 +47,7 @@ char current_db_path[128] = "";
 char current_db_name[18] = "";
 
 
-int getColumnIndexInConfig(ColumnConfig configs[], int colCount, const char *colName);
-int getColumnOffsetInRow(ColumnConfig configs[], int colCount, int colIdx);
-bool helperCheckCondition(uint8_t *dataPtr, uint8_t dataType, void *whereData, const char *op);
-uint8_t getTableIdByName(const char *tableName);
-bool getTableNameById(uint8_t tableId, char *outName);
-bool getColumnNameById(uint8_t tableId, uint8_t colId, char *outColName);
+
 
 // extern char current_db_path[128];
 // extern char current_db_name[18];
@@ -243,6 +238,14 @@ typedef struct
 } DBRegistry;
 
 #pragma pack(pop)
+
+
+int getColumnIndexInConfig(ColumnConfig configs[], int colCount, const char *colName);
+int getColumnOffsetInRow(ColumnConfig configs[], int colCount, int colIdx);
+bool helperCheckCondition(uint8_t *dataPtr, uint8_t dataType, void *whereData, const char *op);
+uint8_t getTableIdByName(const char *tableName);
+bool getTableNameById(uint8_t tableId, char *outName);
+bool getColumnNameById(uint8_t tableId, uint8_t colId, char *outColName);
 
 // uint8_t calculate_type_size(const char *typeStr);
 uint8_t getTypeId(char *typeStr);
