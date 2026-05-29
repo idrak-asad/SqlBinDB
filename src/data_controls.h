@@ -331,7 +331,7 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
                             // 2. Tapdığımız dinamik sütun adını bura yerləşdiririk
                             char *childWhereCols[] = {childKeyColumnName, NULL};
                             void *childWhereData[] = {&parentIdVal};
-                            char *childWhereOps[] = {"=", NULL};
+                            const char *childWhereOps[] = {"=", NULL};
 
                             // Rekursiv çağırma
                             deleteRows(childTableName, childWhereCols, childWhereData, childWhereOps, 1);

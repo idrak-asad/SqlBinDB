@@ -10,8 +10,8 @@
 
 #if defined(TARGET_PLATFORM_ESP32)
     #include "LittleFS.h"
-    #define MASTER_DIR "sqlBinDB"
-    #define MASTER_FILE "sqlBinDB/master_dbs.db"
+    #define MASTER_DIR "/sqlBinDB"
+    #define MASTER_FILE "/sqlBinDB/master_dbs.db"
 #else
     #include <sys/stat.h>
     #include <sys/types.h>
@@ -71,22 +71,36 @@ bool helperCheckDbExists(char *DbName, char *outPsw, long *outOffset);
 
 
 void initSystem() {
-#if defined(TARGET_PLATFORM_ESP32)
-    if (!LittleFS.begin(true)) {
-        printf("ESP32 XETA: LittleFS mount edilə bilmədi!\n");
-        return;
-    }
-    if (!LittleFS.exists(MASTER_DIR)) {
-        LittleFS.mkdir(MASTER_DIR);
-    }
-#else
-    struct stat st = {0};
-    if (stat(MASTER_DIR, &st) == -1) {
-        mkdir(MASTER_DIR, 0777);
-    }
-#endif
-    FILE *f = fopen(MASTER_FILE, "ab+");
-    if (f) fclose(f);
+    Serial.println("\n--- [SqlBinDB] Sistem Başladılır ---");
+
+    #if defined(TARGET_PLATFORM_ESP32)
+        Serial.println("Aktiv Platforma: ESP32 (LittleFS)");
+        
+        // ESP32 üçün LittleFS mount əməliyyatı
+        if (!LittleFS.begin(true)) {
+            Serial.println("XƏTA: LittleFS mount edilə bilmədi!");
+            return;
+        }
+        
+        // Qovluğun mövcudluğunu yoxlayıb yoxdursa yaradırıq
+        if (!LittleFS.exists(MASTER_DIR)) {
+            if (LittleFS.mkdir(MASTER_DIR)) {
+                Serial.println("Mərkəzi qovluq yaradıldı: " MASTER_DIR);
+            } else {
+                Serial.println("XƏTA: Qovluq yaradıla bilmədi!");
+            }
+        }
+    #elif defined(TARGET_PLATFORM_WINDOWS)
+        printf("Aktiv Platforma: WINDOWS\n");
+        _mkdir(MASTER_DIR); // Windows üçün qovluq yaratmaq
+    #elif defined(TARGET_PLATFORM_LINUX)
+        printf("Aktiv Platforma: LINUX\n");
+        mkdir(MASTER_DIR, 0777); // Linux üçün qovluq yaratmaq
+    #else
+        printf("Aktiv Platforma: TƏYİN OLUNMAMIŞ/BİLİNMƏYƏN\n");
+    #endif
+
+    Serial.println("-----------------------------------\n");
 }
 
 // ===================================================================
