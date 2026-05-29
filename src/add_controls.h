@@ -46,6 +46,14 @@
 char current_db_path[128] = "";
 char current_db_name[18] = "";
 
+
+int getColumnIndexInConfig(ColumnConfig configs[], int colCount, const char *colName);
+int getColumnOffsetInRow(ColumnConfig configs[], int colCount, int colIdx);
+bool helperCheckCondition(uint8_t *dataPtr, uint8_t dataType, void *whereData, const char *op);
+uint8_t getTableIdByName(const char *tableName);
+bool getTableNameById(uint8_t tableId, char *outName);
+bool getColumnNameById(uint8_t tableId, uint8_t colId, char *outColName);
+
 // extern char current_db_path[128];
 // extern char current_db_name[18];
 
@@ -239,6 +247,76 @@ typedef struct
 // uint8_t calculate_type_size(const char *typeStr);
 uint8_t getTypeId(char *typeStr);
 void insertIntoIndexFile(const char *idxName, uint32_t keyValue, uint32_t offsetValue);
+
+// ===================================================================
+// KANARDA YARADILMAYAN NÜVƏ FUNKSİYALARININ İCRA KODLARI (GÖVDƏLƏRİ)
+// ===================================================================
+
+// 1. Sütun adına görə onun konfiqurasiya massivindəki indeksini tapır
+int getColumnIndexInConfig(ColumnConfig configs[], int colCount, const char *colName) {
+    for (int i = 0; i < colCount; i++) {
+        if (strcmp(configs[i].columnName, colName) == 0) {
+            return i;
+        }
+    }
+    return -1; // Sütun tapılmadı
+}
+
+// 2. Sütunun binar sətir daxilində neçənci baytdan (offset) başladığını hesablayır
+int getColumnOffsetInRow(ColumnConfig configs[], int colCount, int colIdx) {
+    // İlk bayt silinmə (is_deleted) bayrağı üçün ayrılır (bizim kodda rowBuffer[0])
+    int offset = 1; 
+    for (int i = 0; i < colIdx; i++) {
+        offset += configs[i].dataSize;
+    }
+    return offset;
+}
+
+// 3. Verilən operatora və tipə görə şərtin ödənilib-ödənilmədiyini yoxlayır
+bool helperCheckCondition(uint8_t *dataPtr, uint8_t dataType, void *whereData, const char *op) {
+    if (dataPtr == NULL || whereData == NULL || op == NULL) return false;
+
+    if (dataType == TYPE_INT) {
+        int32_t valInDb = *(int32_t *)dataPtr;
+        int32_t valWhere = *(int32_t *)whereData;
+
+        if (strcmp(op, "=") == 0)   return valInDb == valWhere;
+        if (strcmp(op, "!=") == 0)  return valInDb != valWhere;
+        if (strcmp(op, ">") == 0)   return valInDb > valWhere;
+        if (strcmp(op, "<") == 0)   return valInDb < valWhere;
+        if (strcmp(op, ">=") == 0)  return valInDb >= valWhere;
+        if (strcmp(op, "<=") == 0)  return valInDb <= valWhere;
+    } 
+    else if (dataType == TYPE_UINT32) {
+        uint32_t valInDb = *(uint32_t *)dataPtr;
+        uint32_t valWhere = *(uint32_t *)whereData;
+
+        if (strcmp(op, "=") == 0)   return valInDb == valWhere;
+        if (strcmp(op, "!=") == 0)  return valInDb != valWhere;
+        if (strcmp(op, ">") == 0)   return valInDb > valWhere;
+        if (strcmp(op, "<") == 0)   return valInDb < valWhere;
+        if (strcmp(op, ">=") == 0)  return valInDb >= valWhere;
+        if (strcmp(op, "<=") == 0)  return valInDb <= valWhere;
+    } 
+    else if (dataType == TYPE_FLOAT) {
+        float valInDb = *(float *)dataPtr;
+        float valWhere = *(float *)whereData;
+
+        if (strcmp(op, "=") == 0)   return abs(valInDb - valWhere) < 0.0001; // Float bərabərlik toleransı
+        if (strcmp(op, "!=") == 0)  return abs(valInDb - valWhere) >= 0.0001;
+        if (strcmp(op, ">") == 0)   return valInDb > valWhere;
+        if (strcmp(op, "<") == 0)   return valInDb < valWhere;
+        if (strcmp(op, ">=") == 0)  return valInDb >= valWhere;
+        if (strcmp(op, "<=") == 0)  return valInDb <= valWhere;
+    } 
+    else if (dataType == TYPE_CHAR2) {
+        // Mətn tipləri üçün əsasən "=" və "!=" müqayisələri keçərlidir
+        if (strcmp(op, "=") == 0)   return strcmp((char *)dataPtr, (char *)whereData) == 0;
+        if (strcmp(op, "!=") == 0)  return strcmp((char *)dataPtr, (char *)whereData) != 0;
+    }
+
+    return false;
+}
 
 // ====================================================================
 // 2. ADAPTİV FAYL SİSTEMİ FUNKSİYALARI

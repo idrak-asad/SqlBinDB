@@ -10,12 +10,7 @@
 // #include "index_controls.h"
 
 
-int getColumnIndexInConfig(ColumnConfig configs[], int colCount, const char *colName);
-int getColumnOffsetInRow(ColumnConfig configs[], int colCount, int colIdx);
-bool helperCheckCondition(uint8_t *dataPtr, uint8_t dataType, void *whereData, const char *op);
-uint8_t getTableIdByName(const char *tableName);
-bool getTableNameById(uint8_t tableId, char *outName);
-bool getColumnNameById(uint8_t tableId, uint8_t colId, char *outColName);
+
 
 
 // bool insertRows(const char *tableName, void *dataPointer[], int dataCount)
