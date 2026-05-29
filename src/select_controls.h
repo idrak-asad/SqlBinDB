@@ -181,7 +181,7 @@ void debugSelectStar(const char *tableName) {
 // ====================================================================
 // 9. MULTI-WHERE SELECT DATA
 // ====================================================================
-uint8_t selectWhere(const char *tableName, char *whereColumnsName[], void *whereColumnsData[], char *whereOperators[]) {
+uint8_t selectWhere(const char *tableName, const char *whereColumnsName[], void *whereColumnsData[], const char *whereOperators[]){
     if (strlen(current_db_path) == 0) {
         printf("XETA: Evvelce bir verilener bazasina qoshulun!\n");
         return 0;

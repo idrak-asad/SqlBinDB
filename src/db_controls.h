@@ -33,7 +33,8 @@ bool helperCheckDbExists(const char *DbName, char *outPsw, long *outOffset);
 void initSystem();
 bool createDb(const char *DbName, const char *DbPsw, bool reCreate);
 bool dropDb(char *DbName, char *DbPsw);
-bool connectDb(char *DbName, char *DbPsw);
+// bool connectDb(char *DbName, char *DbPsw);
+bool connectDb(const char *DbName, const char *DbPsw);
 bool disConnectDb();
 void selectDb(char *DbName);
 
@@ -219,7 +220,7 @@ bool dropDb(char *DbName, char *DbPsw) {
 // ====================================================================
 // CONNECT DATABASE
 // ====================================================================
-bool connectDb(char *DbName, char *DbPsw) {
+bool connectDb(const char *DbName, const char *DbPsw) {
     FILE *f = fopen(MASTER_FILE, "rb");
     if (!f) return false;
 
