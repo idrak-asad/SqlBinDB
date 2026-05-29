@@ -32,7 +32,8 @@ bool dropDb(char *DbName, char *DbPsw);
 bool connectDb(char *DbName, char *DbPsw);
 bool disConnectDb();
 void selectDb(char *DbName);
-bool helperCheckDbExists(char *DbName, char *outPsw, long *outOffset);
+// bool helperCheckDbExists(char *DbName, char *outPsw, long *outOffset);
+bool helperCheckDbExists(const char *DbName, char *outPsw, long *outOffset)
 
 // Qlobal aktiv qoşulma yolu
 // char current_db_path[128] = "";
