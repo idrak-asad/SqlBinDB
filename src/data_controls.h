@@ -256,7 +256,7 @@ uint8_t updateDatas(const char *tableName,
 // ====================================================================
 // 8. MULTI-WHERE DELETE ROWS (Soft-Delete)
 // ====================================================================
-uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereColumnsData[], char *whereOperators[], int hardDelete)
+uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereColumnsData[], const char *whereOperators[], int hardDelete)
 {
     if (strlen(current_db_path) == 0)
         return 0;
