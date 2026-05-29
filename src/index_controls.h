@@ -163,7 +163,7 @@ bool insertRowsWithIndex(const char *tableName, void *dataPointer[], int dataCou
 
 
 // SELECT WHERE: Əgər şərt qoyulan sütunun indeksi varsa, O(1) ilə birbaşa nöqtəyə sıçrayır!
-uint8_t selectWhereWithIndex(const char *tableName, char *whereColumnsName[], void *whereColumnsData[], char *whereOperators[]) {
+uint8_t selectWhereWithIndex(const char* tableName, const char* whereColumnsName[], void* whereColumnsData[], const char* whereOperators[]) {
     uint8_t tId = getTableIdByName(tableName);
     uint8_t cId = getColumnIdByName(tId, whereColumnsName[0]); // İlk şərt sütununa baxırıq
     char idxName[32];
@@ -225,7 +225,8 @@ uint8_t selectWhereWithIndex(const char *tableName, char *whereColumnsName[], vo
             }
         }
         printf("\n");
-        return 1;
+        return selectWhere(tableName, whereColumnsName, whereColumnsData, whereOperators);
+        // return 1;
     }
     return 0;
 }
