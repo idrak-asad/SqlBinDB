@@ -26,14 +26,19 @@
 #endif
 
 // FUNKSİYA PROTOTİPLƏRİ
+
+// bool helperCheckDbExists(char *DbName, char *outPsw, long *outOffset);
+bool helperCheckDbExists(const char *DbName, char *outPsw, long *outOffset);
+
 void initSystem();
 bool createDb(const char *DbName, const char *DbPsw, bool reCreate);
 bool dropDb(char *DbName, char *DbPsw);
 bool connectDb(char *DbName, char *DbPsw);
 bool disConnectDb();
 void selectDb(char *DbName);
-// bool helperCheckDbExists(char *DbName, char *outPsw, long *outOffset);
-bool helperCheckDbExists(const char *DbName, char *outPsw, long *outOffset)
+
+
+
 
 // Qlobal aktiv qoşulma yolu
 // char current_db_path[128] = "";
@@ -317,7 +322,7 @@ bool helperCheckDbExists(const char *DbName, char *outPsw, long *outOffset) {
   while (f.read((uint8_t*)&reg, sizeof(DBRegistry)) == sizeof(DBRegistry)) {
       if (reg.is_deleted == 0 && strcmp(reg.db_name, DbName) == 0) {
           // if (outPsw) strcpy(outPsw, reg.db_psw);
-          if (outPsw) strcpy(outPsw, reg.db_pass);
+          if (outPsw) strcpy(outPsw, reg.db_password);
           if (outOffset) *outOffset = currentOffset;
           found = true;
           break;

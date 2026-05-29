@@ -436,15 +436,8 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
     char tableFilePath[256];
     snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
 
-    // "r+" həm oxumaq, həm də faylın ortasındakı baytları birbaşa dəyişmək (write) üçün ən ideal moddur
     File file = LittleFS.open(tableFilePath, "r+");
-    if (!file) {
-        #ifdef __cplusplus
-            Serial.print("XƏTA: Cədvəl faylı açıla bilmədi: ");
-            Serial.println(tableName);
-        #endif
-        return 0;
-    }
+    if (!file) return 0;
 
     DBHeader header;
     file.read((uint8_t*)&header, sizeof(DBHeader));
@@ -454,8 +447,6 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
 
     uint8_t rowBuffer[512];
     uint32_t deletedCount = 0;
-
-    // Data blokunun başladığı ilkin offset
     long startOffset = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
 
     for (uint32_t r = 0; r < header.rowCount; r++) {
@@ -464,9 +455,8 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
         if (!file.seek(currentBlockOffset, SeekSet)) continue;
         if (file.read(rowBuffer, header.rowSize) != header.rowSize) continue;
 
-        if (rowBuffer[0] == 1) continue; // Artıq silinibsə keç
+        if (rowBuffer[0] == 1) continue; 
 
-        // WHERE şərtlərinin yoxlanılması (Sizin mövcut məntiqiniz)
         bool matches = true;
         if (whereColumnsName != NULL) {
             int w = 0;
@@ -475,11 +465,9 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
                 if (colIdx == -1) { matches = false; break; }
 
                 int colOffset = getColumnOffsetInRow(configs, header.columnCount, colIdx);
-                bool conditionMet = false;
-
-                // Burada mövcut binar data müqayisə (TYPE_INT, CHAR və s.) kodlarınız işləyir...
-                // Sadəlik üçün şərtin ödəndiyini fərz edirik:
-                conditionMet = helperCheckCondition(rowBuffer + colOffset, configs[colIdx].dataType, whereColumnsData[w], whereOperators[w]);
+                
+                // .dataType -> .type olaraq dəyişdirildi
+                bool conditionMet = helperCheckCondition(rowBuffer + colOffset, configs[colIdx].type, whereColumnsData[w], whereOperators[w]);
 
                 if (!conditionMet) { matches = false; break; }
                 w++;
@@ -487,7 +475,6 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
         }
 
         if (matches) {
-            // RELYASİYA (CASCADE DELETE) YOXLANILMASI
             uint8_t currentTableId = getTableIdByName(tableName);
             if (currentTableId != 0) {
                 char relPath[256];
@@ -504,14 +491,12 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
                             char childKeyColumnName[MAX_NAME_LEN] = "";
                             if (!getColumnNameById(rel.child_table_id, rel.child_col_id, childKeyColumnName)) continue;
 
-                            // Valideynin ID-sini (Primary Key) binar oxu (adətən is_deleted-dən sonrakı 4 bayt)
                             uint32_t parentIdVal = *(uint32_t *)(rowBuffer + 1);
 
                             char *childWhereCols[] = {childKeyColumnName, NULL};
                             void *childWhereData[] = {&parentIdVal};
-                            const char *childWhereOps[] = {"=", NULL}; // const char* olaraq tənzimləndi!
+                            const char *childWhereOps[] = {"=", NULL}; 
 
-                            // Rekursiv olaraq uşaq cədvəldən əlaqəli sətirləri silirik
                             deleteRows(childTableName, childWhereCols, childWhereData, childWhereOps, 1);
                         }
                     }
@@ -519,10 +504,9 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
                 }
             }
 
-            // SƏTRİ SOFT-DELETE EDİRİK (is_deleted = 1)
             rowBuffer[0] = 1; 
             if (file.seek(currentBlockOffset, SeekSet)) {
-                file.write(rowBuffer, header.rowSize); // Blok olaraq birbaşa diskə yazılır
+                file.write(rowBuffer, header.rowSize);
                 deletedCount++;
             }
         }
@@ -558,9 +542,8 @@ uint8_t updateRows(const char *tableName, char *whereColumnsName[], void *whereC
         if (!file.seek(currentBlockOffset, SeekSet)) continue;
         if (file.read(rowBuffer, header.rowSize) != header.rowSize) continue;
 
-        if (rowBuffer[0] == 1) continue; // Silinmiş sətirləri yeniləmə
+        if (rowBuffer[0] == 1) continue; 
 
-        // WHERE şərtlərinin yoxlanılması
         bool matches = true;
         if (whereColumnsName != NULL) {
             int w = 0;
@@ -569,7 +552,9 @@ uint8_t updateRows(const char *tableName, char *whereColumnsName[], void *whereC
                 if (colIdx == -1) { matches = false; break; }
 
                 int colOffset = getColumnOffsetInRow(configs, header.columnCount, colIdx);
-                if (!helperCheckCondition(rowBuffer + colOffset, configs[colIdx].dataType, whereColumnsData[w], whereOperators[w])) {
+                
+                // .dataType -> .type olaraq dəyişdirildi
+                if (!helperCheckCondition(rowBuffer + colOffset, configs[colIdx].type, whereColumnsData[w], whereOperators[w])) {
                     matches = false;
                     break;
                 }
@@ -577,7 +562,6 @@ uint8_t updateRows(const char *tableName, char *whereColumnsName[], void *whereC
             }
         }
 
-        // Əgər WHERE şərti ödənirsə, SET əməliyyatını icra et
         if (matches) {
             int s = 0;
             while (setColumnsName[s] != NULL) {
@@ -585,26 +569,24 @@ uint8_t updateRows(const char *tableName, char *whereColumnsName[], void *whereC
                 if (colIdx != -1) {
                     int colOffset = getColumnOffsetInRow(configs, header.columnCount, colIdx);
                     
-                    // Tipinə uyğun olaraq rowBuffer içindəki datanı yeniləyirik
-                    if (configs[colIdx].dataType == TYPE_INT) {
+                    // .dataType -> .type olaraq dəyişdirildi
+                    if (configs[colIdx].type == TYPE_INT) {
                         *(int32_t *)(rowBuffer + colOffset) = *(int32_t *)setColumnsData[s];
                     } 
-                    else if (configs[colIdx].dataType == TYPE_UINT32) {
+                    else if (configs[colIdx].type == TYPE_UINT32) {
                         *(uint32_t *)(rowBuffer + colOffset) = *(uint32_t *)setColumnsData[s];
                     }
-                    else if (configs[colIdx].dataType == TYPE_FLOAT) {
+                    else if (configs[colIdx].type == TYPE_FLOAT) {
                         *(float *)(rowBuffer + colOffset) = *(float *)setColumnsData[s];
                     }
-                    else if (configs[colIdx].dataType == TYPE_CHAR2) {
+                    else if (configs[colIdx].type == TYPE_CHAR2) {
                         memset(rowBuffer + colOffset, 0, configs[colIdx].dataSize);
                         strncpy((char *)(rowBuffer + colOffset), (char *)setColumnsData[s], configs[colIdx].dataSize - 1);
                     }
-                    // Digər xüsusi RAM qoruyan tipləriniz varsa bura əlavə edə bilərsiniz...
                 }
                 s++;
             }
 
-            // Yenilənmiş bufferi tam köhnə offsetə geri yazırıq
             if (file.seek(currentBlockOffset, SeekSet)) {
                 file.write(rowBuffer, header.rowSize);
                 updatedCount++;
