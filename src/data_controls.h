@@ -3,8 +3,20 @@
 #ifndef DATA_CONTROLS_H
 #define DATA_CONTROLS_H
 
+
+
+
 // #include "add_controls.h"
 // #include "index_controls.h"
+
+
+int getColumnIndexInConfig(ColumnConfig configs[], int colCount, const char *colName);
+int getColumnOffsetInRow(ColumnConfig configs[], int colCount, int colIdx);
+bool helperCheckCondition(uint8_t *dataPtr, uint8_t dataType, void *whereData, const char *op);
+uint8_t getTableIdByName(const char *tableName);
+bool getTableNameById(uint8_t tableId, char *outName);
+bool getColumnNameById(uint8_t tableId, uint8_t colId, char *outColName);
+
 
 // bool insertRows(const char *tableName, void *dataPointer[], int dataCount)
 // {
@@ -466,8 +478,8 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
 
                 int colOffset = getColumnOffsetInRow(configs, header.columnCount, colIdx);
                 
-                // .dataType -> .type olaraq dəyişdirildi
-                bool conditionMet = helperCheckCondition(rowBuffer + colOffset, configs[colIdx].type, whereColumnsData[w], whereOperators[w]);
+                // DÜZƏLİŞ: .type yerinə .typeID yazıldı!
+                bool conditionMet = helperCheckCondition(rowBuffer + colOffset, configs[colIdx].typeID, whereColumnsData[w], whereOperators[w]);
 
                 if (!conditionMet) { matches = false; break; }
                 w++;
@@ -516,7 +528,9 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
     return deletedCount;
 }
 
-
+// ===================================================================
+// LITTLEFS UYĞUN: updateRows
+// ===================================================================
 uint8_t updateRows(const char *tableName, char *whereColumnsName[], void *whereColumnsData[], const char *whereOperators[], char *setColumnsName[], void *setColumnsData[]) {
     if (strlen(current_db_path) == 0 || setColumnsName == NULL) return 0;
 
@@ -553,8 +567,8 @@ uint8_t updateRows(const char *tableName, char *whereColumnsName[], void *whereC
 
                 int colOffset = getColumnOffsetInRow(configs, header.columnCount, colIdx);
                 
-                // .dataType -> .type olaraq dəyişdirildi
-                if (!helperCheckCondition(rowBuffer + colOffset, configs[colIdx].type, whereColumnsData[w], whereOperators[w])) {
+                // DÜZƏLİŞ: .type yerinə .typeID yazıldı!
+                if (!helperCheckCondition(rowBuffer + colOffset, configs[colIdx].typeID, whereColumnsData[w], whereOperators[w])) {
                     matches = false;
                     break;
                 }
@@ -569,17 +583,17 @@ uint8_t updateRows(const char *tableName, char *whereColumnsName[], void *whereC
                 if (colIdx != -1) {
                     int colOffset = getColumnOffsetInRow(configs, header.columnCount, colIdx);
                     
-                    // .dataType -> .type olaraq dəyişdirildi
-                    if (configs[colIdx].type == TYPE_INT) {
+                    // DÜZƏLİŞ: .type yerinə .typeID yazıldı!
+                    if (configs[colIdx].typeID == TYPE_INT) {
                         *(int32_t *)(rowBuffer + colOffset) = *(int32_t *)setColumnsData[s];
                     } 
-                    else if (configs[colIdx].type == TYPE_UINT32) {
+                    else if (configs[colIdx].typeID == TYPE_UINT32) {
                         *(uint32_t *)(rowBuffer + colOffset) = *(uint32_t *)setColumnsData[s];
                     }
-                    else if (configs[colIdx].type == TYPE_FLOAT) {
+                    else if (configs[colIdx].typeID == TYPE_FLOAT) {
                         *(float *)(rowBuffer + colOffset) = *(float *)setColumnsData[s];
                     }
-                    else if (configs[colIdx].type == TYPE_CHAR2) {
+                    else if (configs[colIdx].typeID == TYPE_CHAR2) {
                         memset(rowBuffer + colOffset, 0, configs[colIdx].dataSize);
                         strncpy((char *)(rowBuffer + colOffset), (char *)setColumnsData[s], configs[colIdx].dataSize - 1);
                     }
