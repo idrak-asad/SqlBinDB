@@ -157,12 +157,8 @@ bool insertRows(const char *tableName, void *dataPointer[], int dataCount) {
     char tableFilePath[256];
     snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
 
-    // "r+" həm oxumaq, həm də yazmaq üçün açır
     File file = LittleFS.open(tableFilePath, "r+");
-    if (!file) {
-        Serial.println("Xəta: Fayl açıla bilmədi!");
-        return false;
-    }
+    if (!file) return false;
 
     DBHeader header;
     file.read((uint8_t*)&header, sizeof(DBHeader));
@@ -173,54 +169,87 @@ bool insertRows(const char *tableName, void *dataPointer[], int dataCount) {
     // ESP32 RAM qorunması üçün stack allocation
     uint8_t rowBuffer[512]; 
     memset(rowBuffer, 0, header.rowSize);
-    
-    // 1. Bayt: is_deleted statusu (0 = Aktiv sətir)
-    rowBuffer[0] = 0; 
+    rowBuffer[0] = 0; // is_deleted = 0 (Aktiv sətir)
 
-    // Datanın buffer-ə yığılması
-    // Diqqət: dataPointer massivindəki hər element bir sütuna uyğun gəlir
-    int currentOffset = 1; // is_deleted bitdikdən sonra
+    int pointerIdx = 0;
+    int currentOffset = 1;
 
-    for (int i = 0; i < header.columnCount; i++) {
-        // Əgər sütun AUTO INCREMENT-dirsə (Məsələn, ID sütunu)
-        if (i == 0) { 
-            int nextId = header.rowCount + 1; // Sadə auto-increment məntiqi
-            memcpy(&rowBuffer[currentOffset], &nextId, sizeof(int));
-            currentOffset += sizeof(int); // ID adətən 4 baytdır (int)
-            continue;
+    for (int i = 1; i < header.columnCount; i++) {
+        // AUTO INCREMENT YOXLANILMASI
+        if (configs[i].constraints & FLAG_AUTO_INCREMENT) {
+            header.last_inserted_id++;
+            uint32_t autoId = header.last_inserted_id;
+            memcpy(rowBuffer + currentOffset, &autoId, sizeof(uint32_t));
+            currentOffset += sizeof(uint32_t);
+            continue; // Auto-increment zamanı dataPointer-dən bu sütun üçün məlumat oxunmur
         }
 
-        // Digər sütunlar üçün dataPointer-dən məlumatı götürürük
-        // Sizin ötürdüyünüz dataCount-dan çox sütun olarsa crash-ın qarşısını almaq üçün:
-        if (i < dataCount && dataPointer[i] != NULL) {
-            
-            // BURADA DİQQƏTLİ OLUN: Sütunun tipinə görə kopyalama variantları
-            // Əgər sütun Yazı (String / Char array) tipindədirsə:
-            if (configs[i].typeID == TYPE_TEXT) { // Sizin koddakı Text enum-ı
-                const char* strData = (const char*)dataPointer[i];
-                strncpy((char*)&rowBuffer[currentOffset], strData, configs[i].dataLength);
-            } 
-            // Əgər sütun Integer (Tam ədəd) tipindədirsə:
-            else if (configs[i].typeID == TYPE_INT) {
-                int intData = *(int*)dataPointer[i]; // Pointer-dən dəyəri oxuyuruq
-                memcpy(&rowBuffer[currentOffset], &intData, sizeof(int));
+        if (pointerIdx >= dataCount) {
+            file.close();
+            return false; 
+        }
+
+        // Sizin arxitekturadakı tiplərə görə kopyalama:
+        if (configs[i].typeID == TYPE_INT || configs[i].typeID == TYPE_UINT32 || configs[i].typeID == TYPE_TIMESTAMP) {
+            memcpy(rowBuffer + currentOffset, dataPointer[pointerIdx], 4);
+            currentOffset += 4;
+        }
+        else if (configs[i].typeID == TYPE_UINT8) {
+            memcpy(rowBuffer + currentOffset, dataPointer[pointerIdx], 1);
+            currentOffset += 1;
+        }
+        else if (configs[i].typeID == TYPE_FLOAT) {
+            memcpy(rowBuffer + currentOffset, dataPointer[pointerIdx], 4);
+            currentOffset += 4;
+        }
+        else if (configs[i].typeID == TYPE_FIXED_POINT) {
+            float userFloat = *(float *)dataPointer[pointerIdx];
+            int16_t fixedVal = (int16_t)(userFloat * 100.0f);
+            memcpy(rowBuffer + currentOffset, &fixedVal, 2);
+            currentOffset += 2;
+        }
+        else if (configs[i].typeID == TYPE_DATETIME) {
+            memcpy(rowBuffer + currentOffset, dataPointer[pointerIdx], sizeof(BinaryDateTime));
+            currentOffset += sizeof(BinaryDateTime);
+        }
+        else if (configs[i].typeID == TYPE_CHAR2) {
+            char tempStr[MAX_CHAR] = {0};
+            strncpy(tempStr, (char *)dataPointer[pointerIdx], configs[i].dataSize - 1);
+            memcpy(rowBuffer + currentOffset, tempStr, configs[i].dataSize);
+            currentOffset += configs[i].dataSize;
+        }
+        else if (configs[i].typeID == TYPE_VARCHAR2) {
+            char varcharPath[256];
+            snprintf(varcharPath, sizeof(varcharPath), "%s/tables/%s.varchardb", current_db_path, tableName);
+            File vFile = LittleFS.open(varcharPath, "a+"); // ESP32 üçün LittleFS modelinə uyğunlaşdırıldı
+            if (vFile) {
+                uint32_t vOffset = vFile.size();
+                char *userStr = (char *)dataPointer[pointerIdx];
+                uint16_t strLen = strlen(userStr);
+                vFile.write((uint8_t*)&strLen, sizeof(uint16_t));
+                vFile.write((uint8_t*)userStr, strLen);
+                vFile.close();
+                memcpy(rowBuffer + currentOffset, &vOffset, sizeof(uint32_t));
             }
+            currentOffset += sizeof(uint32_t);
         }
-
-        // Hər sütunun öz ölçüsü qədər offset-i irəli çəkirik
-        currentOffset += configs[i].dataLength; 
+        pointerIdx++;
     }
 
-    // Faylın sonuna keçid və yazma əməliyyatı
-    if (file.seek(0, SeekEnd)) {
+    // Dairəvi (Circular) yazma nöqtəsinin ofsetinin hesablanması
+    long writeOffset = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount) +
+                       ((header.rowCount % header.maxRows) * header.rowSize);
+
+    if (file.seek(writeOffset, SeekSet)) {
         file.write(rowBuffer, header.rowSize);
-    } else {
-        file.close();
-        return false;
     }
 
-    // Başlığı yeniləmək (Sətir sayını 1 artırmaq)
-    header.rowCount++;
+    // Əgər limit dolmayıbsa rowCount-u artır
+    if (header.rowCount < header.maxRows) {
+        header.rowCount++;
+    }
+
+    // Başlığı və yeni auto_increment sayını yeniləmək
     if (file.seek(0, SeekSet)) {
         file.write((uint8_t*)&header, sizeof(DBHeader));
     }
