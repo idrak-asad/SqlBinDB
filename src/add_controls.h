@@ -273,6 +273,48 @@ void insertIntoIndexFile(const char *idxName, uint32_t keyValue, uint32_t offset
 // KANARDA YARADILMAYAN NÜVƏ FUNKSİYALARININ İCRA KODLARI (GÖVDƏLƏRİ)
 // ===================================================================
 
+
+File openTable(const char *tableName, const char *openType){
+    if (strlen(current_db_path) == 0) return false;
+
+    char tableFilePath[256];
+    
+    // LITTLEFS ÜÇÜN YOLUN DÜZƏLDİLMƏSİ (Kritik Hissə):
+    // Əgər current_db_path "/littlefs" ilə başlayırsa, LittleFS üçün o hissəni silirik
+    const char *cleanPath = current_db_path;
+    if (strncmp(current_db_path, "/littlefs", 9) == 0) {
+        cleanPath = current_db_path + 9; // "/littlefs" sözünü ötürür, məsələn: "/sqlBinDB/my_DB" olur
+    }
+
+    snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", cleanPath, tableName);
+
+    Serial.print("[Diaqnostika] LittleFS ile acilmaga calisilan real yol: ");
+    Serial.println(tableFilePath);
+
+    // Faylı açmağa çalışırıq
+    File file = LittleFS.open(tableFilePath, openType);
+    
+    if (!file) {
+        Serial.println("[XƏTA] 'r+' rejimində tapılmadı, 'r' (oxuma) rejimi yoxlanılır...");
+        file = LittleFS.open(tableFilePath, "r");
+    }
+
+    if (!file) {
+        Serial.println("[KRİTİK XƏTA] LittleFS bu faylı heç bir rejimdə aça bilmədi!");
+        
+        // Səbəbi anlamaq üçün diski yoxlayaq:
+        if (!LittleFS.exists(tableFilePath)) {
+            Serial.println("-> SƏBƏB: Fayl bu adda və bu yolda diskdə FİZİKİ OLARAQ YOXDUR!");
+        } else {
+            Serial.println("-> SƏBƏB: Fayl var, lFS icazə vermir və ya başqa funksiya tərəfindən açıq saxlanılıb (Kilitlənib)!");
+        }
+        return false;
+    }
+    return file; // 🌟 Açılan fayl obyektini geri qaytarırıq!
+}
+
+
+
 // 1. Sütun adına görə onun konfiqurasiya massivindəki indeksini tapır
 int getColumnIndexInConfig(ColumnConfig configs[], int colCount, const char *colName) {
     for (int i = 0; i < colCount; i++) {
