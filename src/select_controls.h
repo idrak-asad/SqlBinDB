@@ -428,7 +428,7 @@ void selectJoinData(const char *parentTable, const char *childTable, const char 
 }
 
 
-uint8_t selectWherInfo(const char *tableName, const char *whereColumnsName[], void *whereColumnsData[], const char *whereOperators[]){
+uint8_t selectWhereInfo(const char *tableName, const char *whereColumnsName[], void *whereColumnsData[], const char *whereOperators[]){
     if (strlen(current_db_path) == 0) {
         printf("XETA: Evvelce bir verilener bazasina qoshulun!\n");
         return 0;
@@ -458,7 +458,13 @@ uint8_t selectWherInfo(const char *tableName, const char *whereColumnsName[], vo
     }
     printf("\n--------------------------------------------------\n");
 
-    uint8_t rowBuffer[512]; // Buffer ölçüsünü qoruma üçün 512 etdik
+    uint8_t rowBuffer[512]; 
+    if (header.rowSize > 512) {
+        printf("XETA: Satir olcusu desteklenen buferden boyukdur!\n");
+        fclose(file);
+        return 0;
+    }
+
     uint8_t matchCount = 0;
     long startPosition = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
 
@@ -467,21 +473,21 @@ uint8_t selectWherInfo(const char *tableName, const char *whereColumnsName[], vo
         fseek(file, rowPos, SEEK_SET);
         fread(rowBuffer, header.rowSize, 1, file);
 
-        if (rowBuffer[0] == 1) continue; // Silinmiş sətirləri keç
+        if (rowBuffer[0] == 1) continue; // Soft-delete filtri (Silinmişləri keç)
 
         bool allConditionsMatch = true;
 
         for (int w = 0; w < whereCount; w++) {
-            // HƏR SÜTUN ÜÇÜN OFSETİ SIFIRDAN HESABLAYIRIQ (Sürüşmənin qarşısını almaq üçün unifikasiya olunmuş metod)
-            int currentOffset = 1;
+            int currentOffset = 1; // Hər bir filtr üçün ofset mütləq 1-dən (is_deleted-dən sonra) başlamalıdır
             int foundIdx = -1;
             
+            // Sütunun ofsetini sıfırdan və tam təhlükəsiz hesablayırıq
             for (int i = 1; i < header.columnCount; i++) {
                 if (strcmp(configs[i].columnName, whereColumnsName[w]) == 0) {
                     foundIdx = i;
-                    break; 
+                    break;
                 }
-                currentOffset += configs[i].dataSize; // Hər sütunun öz real dataSize-ı qədər artır
+                currentOffset += configs[i].dataSize;
             }
 
             if (foundIdx == -1) {
@@ -489,23 +495,53 @@ uint8_t selectWherInfo(const char *tableName, const char *whereColumnsName[], vo
                 break;
             }
 
-            // DİAQNOSTİKA: İlk sətirdə hər sütun üçün binar müqayisə vəziyyətini terminalda görək
-            bool cmpRes = compareValues(rowBuffer + currentOffset, whereColumnsData[w], whereOperators[w], configs[foundIdx].typeID);
-            
-            if (r == 0) { // Sırf test üçün ilk sətirdə hansı filtrin keçib-keçmədiyini yazdırırıq
-                Serial.print("[Test] Sütun: "); Serial.print(whereColumnsName[w]);
-                Serial.print(" | TipID: "); Serial.print(configs[foundIdx].typeID);
-                Serial.print(" | Ofset: "); Serial.print(currentOffset);
-                Serial.print(" | Nəticə: "); Serial.println(cmpRes ? "KECDİ" : "XETA (Bərabər deyil)");
+            // TİPƏ GÖRƏ TƏHLÜKƏSİZ MÜQAYİSƏ (compareValues funksiyasının xətalarını buradaca sığortalayırıq)
+            bool conditionPassed = false;
+            uint8_t *dbFieldPtr = rowBuffer + currentOffset;
+            void *userValPtr = whereColumnsData[w];
+
+            if (configs[foundIdx].typeID == TYPE_CHAR2) {
+                // Diskdəki mətni oxuyuruq (maksimum dataSize qədər)
+                char dbStr[64] = {0};
+                memcpy(dbStr, dbFieldPtr, configs[foundIdx].dataSize);
+                
+                // İstifadəçinin göndərdiyi mətni oxuyuruq
+                const char *userStr = (const char *)userValPtr;
+
+                // CHAR2 üçün strcmp istifadə edirik (arxadakı zibil baytlar bərabərliyi pozmasın deyə)
+                if (strcmp(whereOperators[w], "=") == 0) {
+                    conditionPassed = (strcmp(dbStr, userStr) == 0);
+                }
+            } 
+            else if (configs[foundIdx].typeID == TYPE_INT || configs[foundIdx].typeID == TYPE_UINT32) {
+                uint32_t dbVal = *(uint32_t *)dbFieldPtr;
+                uint32_t userVal = *(uint32_t *)userValPtr;
+
+                if (strcmp(whereOperators[w], "=") == 0) conditionPassed = (dbVal == userVal);
+                else if (strcmp(whereOperators[w], ">") == 0) conditionPassed = (dbVal > userVal);
+                else if (strcmp(whereOperators[w], "<") == 0) conditionPassed = (dbVal < userVal);
+            } 
+            else if (configs[foundIdx].typeID == TYPE_UINT8) {
+                uint8_t dbVal = *(uint8_t *)dbFieldPtr;
+                uint8_t userVal = *(uint8_t *)userValPtr;
+
+                if (strcmp(whereOperators[w], "=") == 0) conditionPassed = (dbVal == userVal);
             }
 
-            if (!cmpRes) {
+            // İlk sətirdə hansı sütunun keçib-keçmədiyini görmək üçün DİAQNOSTİKA LOGU
+            if (r == 0) {
+                Serial.print("[Diaqnostika] Sütun: "); Serial.print(whereColumnsName[w]);
+                Serial.format(" | Ofset: %d | TipID: %d | Netice: %s\n", 
+                              currentOffset, configs[foundIdx].typeID, conditionPassed ? "KECDİ" : "XETA");
+            }
+
+            if (!conditionPassed) {
                 allConditionsMatch = false;
-                break;
+                break; // Bir şərt ödənmədisə, növbəti filtrlərə baxmağa ehtiyac yoxdur (AND məntiqi)
             }
         }
 
-        // Əgər bütün filtrlər keçibsə, sətri EYNİLƏ selectData-dakı kimi təhlükəsiz çap edirik
+        // Əgər bütün WHERE filtrləri uğurlu keçibsə, sətri ekrana çıxarırıq
         if (allConditionsMatch || whereCount == 0) {
             int offset = 1;
             for (int i = 1; i < header.columnCount; i++) {
@@ -513,19 +549,19 @@ uint8_t selectWherInfo(const char *tableName, const char *whereColumnsName[], vo
                     uint32_t val = *(uint32_t *)(rowBuffer + offset);
                     printf("%-15d\t", val);
                     offset += 4;
-                } else if (configs[i].typeID == TYPE_UINT8) {
+                }
+                else if (configs[i].typeID == TYPE_UINT8) {
                     uint8_t val = *(uint8_t *)(rowBuffer + offset);
                     printf("%-15d\t", val);
                     offset += 1;
-                } else if (configs[i].typeID == TYPE_CHAR2) {
+                }
+                else if (configs[i].typeID == TYPE_CHAR2) {
                     char tempStr[64] = {0};
                     memcpy(tempStr, rowBuffer + offset, configs[i].dataSize);
                     printf("%-15s\t", tempStr);
                     offset += configs[i].dataSize;
                 } else {
-                    // Əgər fərqli tip varsa, ofsetin itməməsi üçün onun ölçüsü qədər irəliləyirik
                     offset += configs[i].dataSize;
-                    printf("%-15s\t", "UNK_TYPE");
                 }
             }
             printf("\n");
@@ -538,7 +574,5 @@ uint8_t selectWherInfo(const char *tableName, const char *whereColumnsName[], vo
     printf("Find rows count: %d\n==================================================\n\n", matchCount);
     return matchCount;
 }
-
-
 
 #endif
