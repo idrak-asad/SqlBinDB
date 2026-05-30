@@ -742,4 +742,83 @@ uint8_t updateRows(const char *tableName, char *whereColumnsName[], void *whereC
     return updatedCount;
 }
 
+
+
+// Verilmiş sıra nömrələrinə (indekslərə) əsasən sətirləri birbaşa silir
+uint8_t deleteRowsByIndices(const char *tableName, uint32_t *rowIndices, uint8_t indicesCount) {
+    if (strlen(current_db_path) == 0 || indicesCount == 0 || rowIndices == NULL) return 0;
+
+    char tableFilePath[256];
+    snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
+
+    File file = LittleFS.open(tableFilePath, "r+");
+    if (!file) return 0;
+
+    DBHeader header;
+    file.read((uint8_t*)&header, sizeof(DBHeader));
+
+    long startOffset = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
+    uint8_t deletedCount = 0;
+
+    for (uint8_t i = 0; i < indicesCount; i++) {
+        uint32_t targetRow = rowIndices[i];
+        
+        if (targetRow >= header.rowCount) continue; // Sərhəddən kənardırsa sığortala
+
+        long currentBlockOffset = startOffset + (targetRow * header.rowSize);
+        
+        if (file.seek(currentBlockOffset, SeekSet)) {
+            uint8_t deleteFlag = 1; // is_deleted = 1 bayrağı
+            file.write(&deleteFlag, 1); // Sətrin ən birinci baytını 1 edirik
+            deletedCount++;
+        }
+    }
+
+    file.close();
+    return deletedCount;
+}
+
+
+// Sıra nömrəsinə (r) görə sətir datasını ekrana çıxarır və ya buferə köçürür
+bool readRowByIndex(const char *tableName, uint32_t rowIndex, uint8_t *outRowBuffer) {
+    if (strlen(current_db_path) == 0) return false;
+
+    char tableFilePath[256];
+    snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
+
+    FILE *file = fopen(tableFilePath, "rb");
+    if (!file) return false;
+
+    DBHeader header;
+    fread(&header, sizeof(DBHeader), 1, file);
+
+    if (rowIndex >= header.rowCount) {
+        fclose(file);
+        return false;
+    }
+
+    long startOffset = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
+    long targetOffset = startOffset + (rowIndex * header.rowSize);
+
+    fseek(file, targetOffset, SEEK_SET);
+    
+    uint8_t localBuffer[512];
+    fread(localBuffer, header.rowSize, 1, file);
+    fclose(file);
+
+    if (localBuffer[0] == 1) {
+        // Sətir silinibsə oxumağa icazə vermə
+        return false; 
+    }
+
+    if (outRowBuffer != NULL) {
+        memcpy(outRowBuffer, localBuffer, header.rowSize);
+    }
+
+    // Konsolda göstərək
+    printf("Row Index [%d] oxundu: ", rowIndex);
+    // (İstəyə görə burada configs oxunub sütun tipinə görə print də edilə bilər)
+    return true;
+}
+
 #endif

@@ -568,4 +568,104 @@ uint8_t selectWhere(const char *tableName, const char *whereColumnsName[], void 
     return matchCount;
 }
 
+
+
+// Tapılan sətirlərin sıra nömrələrini outRowIndices massivinə doldurur və ümumi sayı qaytarır
+uint8_t selectWhereIndex(const char *tableName, const char *whereColumnsName[], void *whereColumnsData[], const char *whereOperators[], uint32_t *outRowIndices, uint8_t maxRowsToReturn) {
+    if (strlen(current_db_path) == 0) return 0;
+
+    char tableFilePath[256];
+    snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
+
+    FILE *file = fopen(tableFilePath, "rb");
+    if (!file) return 0;
+
+    DBHeader header;
+    fread(&header, sizeof(DBHeader), 1, file);
+
+    ColumnConfig configs[MAX_COLUMNS + 1];
+    fread(configs, sizeof(ColumnConfig), header.columnCount, file);
+
+    int whereCount = 0;
+    while (whereColumnsName[whereCount] != NULL) whereCount++;
+
+    uint8_t rowBuffer[512]; 
+    uint8_t matchCount = 0;
+    long startPosition = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
+
+    for (uint32_t r = 0; r < header.rowCount; r++) {
+        long rowPos = startPosition + (r * header.rowSize);
+        fseek(file, rowPos, SEEK_SET);
+        fread(rowBuffer, header.rowSize, 1, file);
+
+        if (rowBuffer[0] == 1) continue; // Soft-delete olanları keç
+
+        bool allConditionsMatch = true;
+
+        for (int w = 0; w < whereCount; w++) {
+            int currentOffset = 1; 
+            int foundIdx = -1;
+            
+            for (int i = 1; i < header.columnCount; i++) {
+                if (strcmp(configs[i].columnName, whereColumnsName[w]) == 0) {
+                    foundIdx = i;
+                    break;
+                }
+                currentOffset += configs[i].dataSize;
+            }
+
+            if (foundIdx == -1) {
+                allConditionsMatch = false;
+                break;
+            }
+
+            bool conditionPassed = false;
+            uint8_t *dbFieldPtr = rowBuffer + currentOffset;
+            void *userValPtr = whereColumnsData[w];
+
+            if (userValPtr == NULL) { allConditionsMatch = false; break; }
+
+            if (configs[foundIdx].typeID == TYPE_CHAR2) {
+                char dbTemp[64] = {0};
+                memcpy(dbTemp, dbFieldPtr, configs[foundIdx].dataSize);
+                std::string dbStr(dbTemp);
+                std::string userStr((const char *)userValPtr);
+
+                if (strcmp(whereOperators[w], "=") == 0) conditionPassed = (dbStr == userStr);
+            } 
+            else if (configs[foundIdx].typeID == TYPE_INT || configs[foundIdx].typeID == TYPE_UINT32) {
+                uint32_t dbVal = 0, userVal = 0;
+                memcpy(&dbVal, dbFieldPtr, 4);
+                memcpy(&userVal, userValPtr, 4);
+
+                if (strcmp(whereOperators[w], "=") == 0) conditionPassed = (dbVal == userVal);
+                else if (strcmp(whereOperators[w], ">") == 0) conditionPassed = (dbVal > userVal);
+                else if (strcmp(whereOperators[w], "<") == 0) conditionPassed = (dbVal < userVal);
+            } 
+            else if (configs[foundIdx].typeID == TYPE_UINT8) {
+                uint8_t dbVal = *dbFieldPtr;
+                uint8_t userVal = *(uint8_t *)userValPtr;
+                if (strcmp(whereOperators[w], "=") == 0) conditionPassed = (dbVal == userVal);
+            }
+
+            if (!conditionPassed) {
+                allConditionsMatch = false;
+                break; 
+            }
+        }
+
+        // Əgər sətir bütün şərtlərə uyğundursa
+        if (allConditionsMatch || whereCount == 0) {
+            // Sıra nömrəsini (r) istifadəçinin massivinə qeyd edirik
+            if (outRowIndices != NULL && matchCount < maxRowsToReturn) {
+                outRowIndices[matchCount] = r;
+            }
+            matchCount++;
+        }
+    }
+
+    fclose(file);
+    return matchCount;
+}
+
 #endif
