@@ -155,15 +155,40 @@ bool insertRows(const char *tableName, void *dataPointer[], int dataCount) {
     if (strlen(current_db_path) == 0) return false;
 
     char tableFilePath[256];
-    snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
+    
+    // LITTLEFS ÜÇÜN YOLUN DÜZƏLDİLMƏSİ (Kritik Hissə):
+    // Əgər current_db_path "/littlefs" ilə başlayırsa, LittleFS üçün o hissəni silirik
+    const char *cleanPath = current_db_path;
+    if (strncmp(current_db_path, "/littlefs", 9) == 0) {
+        cleanPath = current_db_path + 9; // "/littlefs" sözünü ötürür, məsələn: "/sqlBinDB/my_DB" olur
+    }
 
-    // "r+" həm oxumaq, həm də mövcud faylın üzərinə yazmaq imkanı verir
+    snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", cleanPath, tableName);
+
+    Serial.print("[Diaqnostika] LittleFS ile acilmaga calisilan real yol: ");
+    Serial.println(tableFilePath);
+
+    // Faylı açmağa çalışırıq
     File file = LittleFS.open(tableFilePath, "r+");
+    
     if (!file) {
-        Serial.print("Xeta: .db fayli acila bilmedi: ");
-        Serial.println(tableFilePath);
+        Serial.println("[XƏTA] 'r+' rejimində tapılmadı, 'r' (oxuma) rejimi yoxlanılır...");
+        file = LittleFS.open(tableFilePath, "r");
+    }
+
+    if (!file) {
+        Serial.println("[KRİTİK XƏTA] LittleFS bu faylı heç bir rejimdə aça bilmədi!");
+        
+        // Səbəbi anlamaq üçün diski yoxlayaq:
+        if (!LittleFS.exists(tableFilePath)) {
+            Serial.println("-> SƏBƏB: Fayl bu adda və bu yolda diskdə FİZİKİ OLARAQ YOXDUR!");
+        } else {
+            Serial.println("-> SƏBƏB: Fayl var, lFS icazə vermir və ya başqa funksiya tərəfindən açıq saxlanılıb (Kilitlənib)!");
+        }
         return false;
     }
+
+    Serial.println("[UĞURLU] Fayl LittleFS tərəfindən uğurla açıldı. Yazma prosesi başlayır...");
 
     DBHeader header;
     file.read((uint8_t*)&header, sizeof(DBHeader));
