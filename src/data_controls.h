@@ -751,26 +751,47 @@ uint8_t deleteRowsByIndices(const char *tableName, uint32_t *rowIndices, uint8_t
     char tableFilePath[256];
     snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
 
+    // "r+" mütləq düzgün açılmalıdır
     File file = LittleFS.open(tableFilePath, "r+");
-    if (!file) return 0;
+    if (!file) {
+        Serial.println("[XƏTA] Silmək üçün cədvəl faylı açılmadı!");
+        return 0;
+    }
 
     DBHeader header;
-    file.read((uint8_t*)&header, sizeof(DBHeader));
+    if (file.read((uint8_t*)&header, sizeof(DBHeader)) != sizeof(DBHeader)) {
+        file.close();
+        return 0;
+    }
 
+    // Header və ColumnConfig massivindən sonrakı real datanın başladığı yer
     long startOffset = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
     uint8_t deletedCount = 0;
+    uint8_t deleteFlag = 1; // is_deleted = 1 edirik
 
     for (uint8_t i = 0; i < indicesCount; i++) {
         uint32_t targetRow = rowIndices[i];
         
-        if (targetRow >= header.rowCount) continue; // Sərhəddən kənardırsa sığortala
+        if (targetRow >= header.rowCount) continue;
 
+        // Tam olaraq silmək istədiyimiz sətrin başlanğıc ofseti
         long currentBlockOffset = startOffset + (targetRow * header.rowSize);
         
-        if (file.seek(currentBlockOffset, SeekSet)) {
-            uint8_t deleteFlag = 1; // is_deleted = 1 bayrağı
-            file.write(&deleteFlag, 1); // Sətrin ən birinci baytını 1 edirik
-            deletedCount++;
+        // 🛡️ DÜZƏLİŞ: Seek funksiyasını LittleFS-in doğma dəyəri ilə istifadə edirik
+        if (file.seek(currentBlockOffset, SeekBeg)) { 
+            // Sətrin ən birinci baytını (is_deleted) 1 edirik
+            size_t written = file.write(&deleteFlag, 1);
+            
+            if (written > 0) {
+                deletedCount++;
+                // Diskə dərhal yazılmasını məcburi edirik (Buffer kilitlənməsin deyə)
+                file.flush(); 
+                Serial.printf("[KÖMƏKÇİ] Sıra No [%d] uğurla silindi (Ofset: %ld)\n", targetRow, currentBlockOffset);
+            } else {
+                Serial.printf("[XƏTA] Sıra No [%d] üçün diskə yazıla bilmədi!\n", targetRow);
+            }
+        } else {
+            Serial.printf("[XƏTA] Ofsetə keçid alınmadı: %ld\n", currentBlockOffset);
         }
     }
 
