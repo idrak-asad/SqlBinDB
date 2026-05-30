@@ -1,6 +1,6 @@
 {
     "name": "SqlBinDB",
-    "version": "1.2.3",
+    "version": "1.2.4",
     "description": "Ultra-lightweight binary embedded relational database engine for ESP32 and cross-platform desktop environments.",
     "keywords": "database, binary, storage, esp32, embedded, relational, index",
     "authors": [
