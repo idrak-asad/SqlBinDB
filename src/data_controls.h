@@ -12,7 +12,7 @@
 
 
 
-bool insertRows(const char *tableName, void *dataPointer[], int dataCount) {
+int insertRows(const char *tableName, void *dataPointer[], int dataCount) {
     if (strlen(current_db_path) == 0) return false;
 
     char tableFilePath[256];
@@ -64,6 +64,7 @@ bool insertRows(const char *tableName, void *dataPointer[], int dataCount) {
 
     int pointerIdx = 0;
     int currentOffset = 1; // is_deleted baytından sonra başlayır
+    int return_id = 0;
 
     for (int i = 1; i < header.columnCount; i++) {
         
@@ -71,6 +72,7 @@ bool insertRows(const char *tableName, void *dataPointer[], int dataCount) {
         if (configs[i].constraints & FLAG_AUTO_INCREMENT) {
             header.last_inserted_id++;
             uint32_t autoId = header.last_inserted_id;
+            return_id = autoId;
             memcpy(rowBuffer + currentOffset, &autoId, sizeof(uint32_t));
             currentOffset += sizeof(uint32_t);
             // Auto increment sütunu üçün dataPointer-dən məlumat oxunmur, pointerIdx ARTMIR!
@@ -156,7 +158,7 @@ bool insertRows(const char *tableName, void *dataPointer[], int dataCount) {
     }
 
     file.close();
-    return true;
+    return return_id;
 }
 
 
