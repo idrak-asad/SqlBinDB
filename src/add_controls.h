@@ -275,7 +275,7 @@ void insertIntoIndexFile(const char *idxName, uint32_t keyValue, uint32_t offset
 
 
 File openTable(const char *tableName, const char *openType){
-    if (strlen(current_db_path) == 0) return false;
+    // if (strlen(current_db_path) == 0) return file;
 
     char tableFilePath[256];
     
@@ -308,7 +308,7 @@ File openTable(const char *tableName, const char *openType){
         } else {
             Serial.println("-> SƏBƏB: Fayl var, lFS icazə vermir və ya başqa funksiya tərəfindən açıq saxlanılıb (Kilitlənib)!");
         }
-        return false;
+        return file;
     }
     return file; // 🌟 Açılan fayl obyektini geri qaytarırıq!
 }
