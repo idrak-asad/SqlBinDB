@@ -13,40 +13,11 @@
 
 
 int insertRows(const char *tableName, void *dataPointer[], int dataCount) {
-    if (strlen(current_db_path) == 0) return false;
-
-    char tableFilePath[256];
-    
-    // LITTLEFS ÜÇÜN YOLUN DÜZƏLDİLMƏSİ (Kritik Hissə):
-    // Əgər current_db_path "/littlefs" ilə başlayırsa, LittleFS üçün o hissəni silirik
-    const char *cleanPath = current_db_path;
-    if (strncmp(current_db_path, "/littlefs", 9) == 0) {
-        cleanPath = current_db_path + 9; // "/littlefs" sözünü ötürür, məsələn: "/sqlBinDB/my_DB" olur
-    }
-
-    snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", cleanPath, tableName);
-
-    Serial.print("[Diaqnostika] LittleFS ile acilmaga calisilan real yol: ");
-    Serial.println(tableFilePath);
-
-    // Faylı açmağa çalışırıq
-    File file = LittleFS.open(tableFilePath, "r+");
+   File file = openTable(tableName, "r+");
     
     if (!file) {
-        Serial.println("[XƏTA] 'r+' rejimində tapılmadı, 'r' (oxuma) rejimi yoxlanılır...");
-        file = LittleFS.open(tableFilePath, "r");
-    }
-
-    if (!file) {
-        Serial.println("[KRİTİK XƏTA] LittleFS bu faylı heç bir rejimdə aça bilmədi!");
-        
-        // Səbəbi anlamaq üçün diski yoxlayaq:
-        if (!LittleFS.exists(tableFilePath)) {
-            Serial.println("-> SƏBƏB: Fayl bu adda və bu yolda diskdə FİZİKİ OLARAQ YOXDUR!");
-        } else {
-            Serial.println("-> SƏBƏB: Fayl var, lFS icazə vermir və ya başqa funksiya tərəfindən açıq saxlanılıb (Kilitlənib)!");
-        }
-        return false;
+        // openTable daxilində artıq [KRİTİK XƏTA] loqları çıxır
+        return 0; // Xəta halında ID = 0 qayıdır
     }
 
     Serial.println("[UĞURLU] Fayl LittleFS tərəfindən uğurla açıldı. Yazma prosesi başlayır...");
@@ -64,8 +35,8 @@ int insertRows(const char *tableName, void *dataPointer[], int dataCount) {
 
     int pointerIdx = 0;
     int currentOffset = 1; // is_deleted baytından sonra başlayır
-    int return_id = 0;
-
+    uint32_t return_id = 0;
+Serial.println("Data İnsert prosesis başlayır");
     for (int i = 1; i < header.columnCount; i++) {
         
         // 1. AUTO INCREMENT YOXLANILMASI
@@ -134,7 +105,7 @@ int insertRows(const char *tableName, void *dataPointer[], int dataCount) {
 
         pointerIdx++; // Növbəti ötürülən məlumata keçid
     }
-
+Serial.println("Data Yazıldı");
     // 3. DAİRƏVİ (CIRCULAR) SİSTEMƏ UYGUN YAZMA NÖQTƏSİNİN HESABLANMASI
     // Sizin data_controls.h-dakı orijinal riyazi modeliniz:
     long writeOffset = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount) + 
@@ -146,7 +117,7 @@ int insertRows(const char *tableName, void *dataPointer[], int dataCount) {
         file.close();
         return false;
     }
-
+Serial.println("Data Save edilir");
     // Əgər cədvəlin limiti (maxRows) dolmayıbsa ümumi sətir sayını artırırıq
     if (header.rowCount < header.maxRows) {
         header.rowCount++;
@@ -157,6 +128,7 @@ int insertRows(const char *tableName, void *dataPointer[], int dataCount) {
         file.write((uint8_t*)&header, sizeof(DBHeader));
     }
 
+    file.flush();
     file.close();
     return return_id;
 }
