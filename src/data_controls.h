@@ -744,27 +744,27 @@ uint8_t updateRows(const char *tableName, char *whereColumnsName[], void *whereC
 
 
 
-// Verilmiş sıra nömrələrinə (indekslərə) əsasən sətirləri birbaşa silir
 uint8_t deleteRowsByIndices(const char *tableName, uint32_t *rowIndices, uint8_t indicesCount) {
     if (strlen(current_db_path) == 0 || indicesCount == 0 || rowIndices == NULL) return 0;
 
     char tableFilePath[256];
-    snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
+    // ESP32 üçün real fiziki yol (Başına mount nöqtəsi mütləq əlavə edilməlidir)
+    snprintf(tableFilePath, sizeof(tableFilePath), "/littlefs%s/tables/%s.db", current_db_path, tableName);
 
-    // "r+" mütləq düzgün açılmalıdır
-    File file = LittleFS.open(tableFilePath, "r+");
+    // "r+b" rejimi mövcud faylı silmədən daxilində həm oxumağa, həm də istənilən baytı dəyişməyə icazə verir
+    FILE *file = fopen(tableFilePath, "r+b");
     if (!file) {
-        Serial.println("[XƏTA] Silmək üçün cədvəl faylı açılmadı!");
+        Serial.printf("[XƏTA] Silmək üçün fayl açılmadı (Yol: %s)!\n", tableFilePath);
         return 0;
     }
 
     DBHeader header;
-    if (file.read((uint8_t*)&header, sizeof(DBHeader)) != sizeof(DBHeader)) {
-        file.close();
+    if (fread(&header, sizeof(DBHeader), 1, file) != 1) {
+        fclose(file);
         return 0;
     }
 
-    // Header və ColumnConfig massivindən sonrakı real datanın başladığı yer
+    // Header və sütun konfiqurasiyalarından sonrakı real datanın başlanğıcı
     long startOffset = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
     uint8_t deletedCount = 0;
     uint8_t deleteFlag = 1; // is_deleted = 1 edirik
@@ -774,28 +774,25 @@ uint8_t deleteRowsByIndices(const char *tableName, uint32_t *rowIndices, uint8_t
         
         if (targetRow >= header.rowCount) continue;
 
-        // Tam olaraq silmək istədiyimiz sətrin başlanğıc ofseti
+        // Tam olaraq hədəf sətrin ilk baytının (is_deleted) yerləşdiyi ofset
         long currentBlockOffset = startOffset + (targetRow * header.rowSize);
         
-        // 🛡️ DÜZƏLİŞ: Seek funksiyasını LittleFS-in doğma dəyəri ilə istifadə edirik
-        if (file.seek(currentBlockOffset, SeekSet)) { 
-            // Sətrin ən birinci baytını (is_deleted) 1 edirik
-            size_t written = file.write(&deleteFlag, 1);
+        // Faylın həmin nöqtəsinə atlanırıq
+        if (fseek(file, currentBlockOffset, SEEK_SET) == 0) {
+            // Sətrin ilk baytını 1 (silinmiş) olaraq binar fayla yazırıq
+            size_t written = fwrite(&deleteFlag, sizeof(uint8_t), 1, file);
             
-            if (written > 0) {
+            if (written == 1) {
                 deletedCount++;
-                // Diskə dərhal yazılmasını məcburi edirik (Buffer kilitlənməsin deyə)
-                file.flush(); 
                 Serial.printf("[KÖMƏKÇİ] Sıra No [%d] uğurla silindi (Ofset: %ld)\n", targetRow, currentBlockOffset);
-            } else {
-                Serial.printf("[XƏTA] Sıra No [%d] üçün diskə yazıla bilmədi!\n", targetRow);
             }
-        } else {
-            Serial.printf("[XƏTA] Ofsetə keçid alınmadı: %ld\n", currentBlockOffset);
         }
     }
 
-    file.close();
+    // Dəyişikliklərin dərhal diskə köçürülməsi və faylın bağlanması
+    fflush(file);
+    fclose(file);
+    
     return deletedCount;
 }
 
