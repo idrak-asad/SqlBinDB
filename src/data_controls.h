@@ -12,8 +12,7 @@ int insertRows(const char *tableName, void *dataPointer[], int dataCount)
 
     if (!file)
     {
-        // openTable daxilində artıq [KRİTİK XƏTA] loqları çıxır
-        return 0; // Xəta halında ID = 0 qayıdır
+        return 0; 
     }
 
     Serial.println("[UĞURLU] Fayl LittleFS tərəfindən uğurla açıldı. Yazma prosesi başlayır...");
@@ -24,44 +23,43 @@ int insertRows(const char *tableName, void *dataPointer[], int dataCount)
     ColumnConfig configs[MAX_COLUMNS + 1];
     file.read((uint8_t *)configs, sizeof(ColumnConfig) * header.columnCount);
 
-    // ESP32 RAM qorunması üçün stack allocation
     uint8_t rowBuffer[512];
     memset(rowBuffer, 0, header.rowSize);
-    rowBuffer[0] = 0; // is_deleted = 0 (Aktiv sətir)
+    rowBuffer[0] = 0; // is_deleted = 0
 
     int pointerIdx = 0;
-    int currentOffset = 1; // is_deleted baytından sonra başlayır
-    uint32_t return_id = 0;
+    int currentOffset = 1; 
+    
+    // 🌟 1. BU DƏYİŞƏN ARTIQ ID YOX, SIRA NÖMRƏSİNİ QAYTARMAQ ÜÇÜN İSTİFADƏ OLUNACAQ
+    uint32_t rowIndex = 0; 
+
     Serial.println("Data İnsert prosesis başlayır");
     for (int i = 1; i < header.columnCount; i++)
     {
-
         // 1. AUTO INCREMENT YOXLANILMASI
         if (configs[i].constraints & FLAG_AUTO_INCREMENT)
         {
             Serial.println("İncriment edilir");
             header.last_inserted_id++;
             uint32_t autoId = header.last_inserted_id;
-            return_id = autoId;
+            
+            // ID-ni hələ də fayla yazırıq (baza strukturu pozulmasın deyə)
             memcpy(rowBuffer + currentOffset, &autoId, sizeof(uint32_t));
             currentOffset += sizeof(uint32_t);
-            // Auto increment sütunu üçün dataPointer-dən məlumat oxunmur, pointerIdx ARTMIR!
             Serial.println("İncriment edildi");
             continue;
         }
 
-        // Əgər göndərilən dataların sayı sütun sayından azdırsa crash-ın qarşısını almaq üçün qoruma
         if (pointerIdx >= dataCount || dataPointer[pointerIdx] == NULL)
         {
             Serial.println("row count test edilir");
-            // Əgər data çatışmırsa, boşluq buraxıb offset-i irəli çəkirik
             currentOffset += configs[i].dataSize;
             pointerIdx++;
             Serial.println("row count test edildi");
             continue;
         }
 
-        // 2. SİZİN SİSTEMİN REAL TİPLƏRİNƏ GÖRƏ BUFFERƏ KOPIYALAMA (typeID istifadə edilir)
+        // 2. BUFFERƏ KOPIYALAMA
         if (configs[i].typeID == TYPE_INT || configs[i].typeID == TYPE_UINT32)
         {
             memcpy(rowBuffer + currentOffset, dataPointer[pointerIdx], 4);
@@ -79,13 +77,11 @@ int insertRows(const char *tableName, void *dataPointer[], int dataCount)
         }
         else if (configs[i].typeID == TYPE_FIXED_POINT)
         {
-            // Sizin RAM qoruyan 2 baytlıq tipiniz
             memcpy(rowBuffer + currentOffset, dataPointer[pointerIdx], 2);
             currentOffset += 2;
         }
         else if (configs[i].typeID == TYPE_CHAR2)
         {
-            // Sabit ölçülü mətn (Sizin configs[i].dataSize uzunluğunda)
             char tempStr[MAX_CHAR] = {0};
             strncpy(tempStr, (const char *)dataPointer[pointerIdx], configs[i].dataSize - 1);
             memcpy(rowBuffer + currentOffset, tempStr, configs[i].dataSize);
@@ -93,11 +89,10 @@ int insertRows(const char *tableName, void *dataPointer[], int dataCount)
         }
         else if (configs[i].typeID == TYPE_VARCHAR2)
         {
-            // Dinamik varchar sistemi (.varchardb faylına yazır)
             char varcharPath[256];
             snprintf(varcharPath, sizeof(varcharPath), "%s/tables/%s.varchardb", current_db_path, tableName);
 
-            File vFile = LittleFS.open(varcharPath, "a+"); // Əgər yoxdursa yaradır, varsa sonuna əlavə edir
+            File vFile = LittleFS.open(varcharPath, "a+"); 
             uint32_t vOffset = 0;
             if (vFile)
             {
@@ -108,18 +103,20 @@ int insertRows(const char *tableName, void *dataPointer[], int dataCount)
                 vFile.write((const uint8_t *)userStr, strLen);
                 vFile.close();
             }
-            // Əsas faylda .varchardb-dəki yerin ofsetini (pointer) saxlayırıq
             memcpy(rowBuffer + currentOffset, &vOffset, sizeof(uint32_t));
             currentOffset += sizeof(uint32_t);
         }
 
-        pointerIdx++; // Növbəti ötürülən məlumata keçid
+        pointerIdx++; 
     }
     Serial.println("Data Yazıldı");
-    // 3. DAİRƏVİ (CIRCULAR) SİSTEMƏ UYGUN YAZMA NÖQTƏSİNİN HESABLANMASI
-    // Sizin data_controls.h-dakı orijinal riyazi modeliniz:
+
+    // 🌟 2. YENİ SƏTRİN FAYL DAXİLİNDƏKİ SIRA NÖMRƏSİNİ (İNDEKSİNİ) HESABLAYIB YADDA SAXLAYIRIQ
+    rowIndex = header.rowCount % header.maxRows;
+
+    // 3. DAİRƏVİ SİSTEMƏ UYGUN YAZMA NÖQTƏSİNİN HESABLANMASI
     long writeOffset = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount) +
-                       ((header.rowCount % header.maxRows) * header.rowSize);
+                       (rowIndex * header.rowSize); // Düsturu rowIndex ilə qısaltdıq
 
     if (file.seek(writeOffset, SeekSet))
     {
@@ -131,13 +128,12 @@ int insertRows(const char *tableName, void *dataPointer[], int dataCount)
         return false;
     }
     Serial.println("Data Save edilir");
-    // Əgər cədvəlin limiti (maxRows) dolmayıbsa ümumi sətir sayını artırırıq
+
     if (header.rowCount < header.maxRows)
     {
         header.rowCount++;
     }
 
-    // Başlığı (yeni rowCount və last_inserted_id-ni) faylın əvvəlinə yenidən yazırıq
     if (file.seek(0, SeekSet))
     {
         file.write((uint8_t *)&header, sizeof(DBHeader));
@@ -145,7 +141,9 @@ int insertRows(const char *tableName, void *dataPointer[], int dataCount)
 
     file.flush();
     file.close();
-    return return_id;
+
+    // 🌟 3. AUTO INCREMENT ID YOX, BAZADAKI REAL SIRA INDEKSİNİ QAYTARIRIQ
+    return rowIndex; 
 }
 
 uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereColumnsData[], const char *whereOperators[], int hardDelete)
