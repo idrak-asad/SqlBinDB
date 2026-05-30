@@ -778,7 +778,7 @@ uint8_t deleteRowsByIndices(const char *tableName, uint32_t *rowIndices, uint8_t
         long currentBlockOffset = startOffset + (targetRow * header.rowSize);
         
         // 🛡️ DÜZƏLİŞ: Seek funksiyasını LittleFS-in doğma dəyəri ilə istifadə edirik
-        if (file.seek(currentBlockOffset, SeekBeg)) { 
+        if (file.seek(currentBlockOffset, SeekSet)) { 
             // Sətrin ən birinci baytını (is_deleted) 1 edirik
             size_t written = file.write(&deleteFlag, 1);
             
