@@ -427,4 +427,118 @@ void selectJoinData(const char *parentTable, const char *childTable, const char 
     fclose(cInst);
 }
 
+
+uint8_t selectWherInfo(const char *tableName, const char *whereColumnsName[], void *whereColumnsData[], const char *whereOperators[]){
+    if (strlen(current_db_path) == 0) {
+        printf("XETA: Evvelce bir verilener bazasina qoshulun!\n");
+        return 0;
+    }
+
+    char tableFilePath[256];
+    snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
+
+    FILE *file = fopen(tableFilePath, "rb");
+    if (!file) {
+        printf("Error: '%s' cadvali tapilmadi!\n", tableName);
+        return 0;
+    }
+
+    DBHeader header;
+    fread(&header, sizeof(DBHeader), 1, file);
+
+    ColumnConfig configs[MAX_COLUMNS + 1];
+    fread(configs, sizeof(ColumnConfig), header.columnCount, file);
+
+    int whereCount = 0;
+    while (whereColumnsName[whereCount] != NULL) whereCount++;
+
+    printf("\n=== FILTERED SELECT: %s (Filtr Sayi: %d) ===\n", tableName, whereCount);
+    for (int i = 1; i < header.columnCount; i++) {
+        printf("%-15s\t", configs[i].columnName);
+    }
+    printf("\n--------------------------------------------------\n");
+
+    uint8_t rowBuffer[512]; // Buffer ölçüsünü qoruma üçün 512 etdik
+    uint8_t matchCount = 0;
+    long startPosition = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
+
+    for (uint32_t r = 0; r < header.rowCount; r++) {
+        long rowPos = startPosition + (r * header.rowSize);
+        fseek(file, rowPos, SEEK_SET);
+        fread(rowBuffer, header.rowSize, 1, file);
+
+        if (rowBuffer[0] == 1) continue; // Silinmiş sətirləri keç
+
+        bool allConditionsMatch = true;
+
+        for (int w = 0; w < whereCount; w++) {
+            // HƏR SÜTUN ÜÇÜN OFSETİ SIFIRDAN HESABLAYIRIQ (Sürüşmənin qarşısını almaq üçün unifikasiya olunmuş metod)
+            int currentOffset = 1;
+            int foundIdx = -1;
+            
+            for (int i = 1; i < header.columnCount; i++) {
+                if (strcmp(configs[i].columnName, whereColumnsName[w]) == 0) {
+                    foundIdx = i;
+                    break; 
+                }
+                currentOffset += configs[i].dataSize; // Hər sütunun öz real dataSize-ı qədər artır
+            }
+
+            if (foundIdx == -1) {
+                allConditionsMatch = false;
+                break;
+            }
+
+            // DİAQNOSTİKA: İlk sətirdə hər sütun üçün binar müqayisə vəziyyətini terminalda görək
+            bool cmpRes = compareValues(rowBuffer + currentOffset, whereColumnsData[w], whereOperators[w], configs[foundIdx].typeID);
+            
+            if (r == 0) { // Sırf test üçün ilk sətirdə hansı filtrin keçib-keçmədiyini yazdırırıq
+                Serial.print("[Test] Sütun: "); Serial.print(whereColumnsName[w]);
+                Serial.print(" | TipID: "); Serial.print(configs[foundIdx].typeID);
+                Serial.print(" | Ofset: "); Serial.print(currentOffset);
+                Serial.print(" | Nəticə: "); Serial.println(cmpRes ? "KECDİ" : "XETA (Bərabər deyil)");
+            }
+
+            if (!cmpRes) {
+                allConditionsMatch = false;
+                break;
+            }
+        }
+
+        // Əgər bütün filtrlər keçibsə, sətri EYNİLƏ selectData-dakı kimi təhlükəsiz çap edirik
+        if (allConditionsMatch || whereCount == 0) {
+            int offset = 1;
+            for (int i = 1; i < header.columnCount; i++) {
+                if (configs[i].typeID == TYPE_INT || configs[i].typeID == TYPE_UINT32) {
+                    uint32_t val = *(uint32_t *)(rowBuffer + offset);
+                    printf("%-15d\t", val);
+                    offset += 4;
+                } else if (configs[i].typeID == TYPE_UINT8) {
+                    uint8_t val = *(uint8_t *)(rowBuffer + offset);
+                    printf("%-15d\t", val);
+                    offset += 1;
+                } else if (configs[i].typeID == TYPE_CHAR2) {
+                    char tempStr[64] = {0};
+                    memcpy(tempStr, rowBuffer + offset, configs[i].dataSize);
+                    printf("%-15s\t", tempStr);
+                    offset += configs[i].dataSize;
+                } else {
+                    // Əgər fərqli tip varsa, ofsetin itməməsi üçün onun ölçüsü qədər irəliləyirik
+                    offset += configs[i].dataSize;
+                    printf("%-15s\t", "UNK_TYPE");
+                }
+            }
+            printf("\n");
+            matchCount++;
+        }
+    }
+
+    fclose(file);
+    printf("--------------------------------------------------\n");
+    printf("Find rows count: %d\n==================================================\n\n", matchCount);
+    return matchCount;
+}
+
+
+
 #endif
