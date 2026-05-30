@@ -192,25 +192,25 @@ typedef struct
 // } DBHeader;
 
 
-// typedef struct {
-//     uint32_t signature;       // "SQLB"
-//     char tableName[32];
-//     uint32_t columnCount;
-//     uint32_t rowCount;        // Hazırda bazada olan real sətir sayısı (maxRows-u keçə bilməz)
-//     uint32_t rowSize;
-//     uint32_t maxRows;         // MƏKSİMUM SƏTİR LİMİTİ (Yeni)
-//     uint32_t nextRowIndex;    // NÖVBƏTİ YAZILACAQ İNDEKS (0-dan maxRows-1 kimi fırlanır) (Yeni)
-// uint32_t last_inserted_id; // AUTO_INCREMENT izləmək üçün yeni bölmə
-// } DBHeader;
-
-
 typedef struct {
-    uint32_t rowSize;          // Hər sətirin ümumi ölçüsü
-    uint32_t rowCount;         // Mövcud sətir sayı
-    uint32_t maxRows;          // Dairəvi (Circular) sistem üçün maksimum limit
-    uint16_t columnCount;      // Sütun sayı
-    uint32_t last_inserted_id; // Auto increment üçün son ID
+    uint32_t signature;       // "SQLB"
+    char tableName[32];
+    uint32_t columnCount;
+    uint32_t rowCount;        // Hazırda bazada olan real sətir sayısı (maxRows-u keçə bilməz)
+    uint32_t rowSize;
+    uint32_t maxRows;         // MƏKSİMUM SƏTİR LİMİTİ (Yeni)
+    uint32_t nextRowIndex;    // NÖVBƏTİ YAZILACAQ İNDEKS (0-dan maxRows-1 kimi fırlanır) (Yeni)
+uint32_t last_inserted_id; // AUTO_INCREMENT izləmək üçün yeni bölmə
 } DBHeader;
+
+
+// typedef struct {
+//     uint32_t rowSize;          // Hər sətirin ümumi ölçüsü
+//     uint32_t rowCount;         // Mövcud sətir sayı
+//     uint32_t maxRows;          // Dairəvi (Circular) sistem üçün maksimum limit
+//     uint16_t columnCount;      // Sütun sayı
+//     uint32_t last_inserted_id; // Auto increment üçün son ID
+// } DBHeader;
 
 
 // typedef struct {
