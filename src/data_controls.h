@@ -545,6 +545,7 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
     char tableFilePath[256];
     snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
 
+    // "r+" həm oxumaq, həm də üzərinə yaza bilmək üçün mütləqdir
     File file = LittleFS.open(tableFilePath, "r+");
     if (!file) return 0;
 
@@ -558,13 +559,16 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
     uint32_t deletedCount = 0;
     long startOffset = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
 
+    // İlk öncə cədvəlin ID-sini alırıq (Relyasiyaları yoxlamaq üçün)
+    uint8_t currentTableId = getTableIdByName(tableName);
+
     for (uint32_t r = 0; r < header.rowCount; r++) {
         long currentBlockOffset = startOffset + (r * header.rowSize);
         
         if (!file.seek(currentBlockOffset, SeekSet)) continue;
         if (file.read(rowBuffer, header.rowSize) != header.rowSize) continue;
 
-        if (rowBuffer[0] == 1) continue; 
+        if (rowBuffer[0] == 1) continue; // Artıq silinmiş sətirdirsə, keç
 
         bool matches = true;
         if (whereColumnsName != NULL) {
@@ -575,17 +579,20 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
 
                 int colOffset = getColumnOffsetInRow(configs, header.columnCount, colIdx);
                 
-                // DÜZƏLİŞ: .type yerinə .typeID yazıldı!
                 bool conditionMet = helperCheckCondition(rowBuffer + colOffset, configs[colIdx].typeID, whereColumnsData[w], whereOperators[w]);
-
                 if (!conditionMet) { matches = false; break; }
                 w++;
             }
         }
 
+        // Əgər silinmək istənən sətir tapıldısa:
         if (matches) {
-            uint8_t currentTableId = getTableIdByName(tableName);
-            if (currentTableId != 0) {
+            bool allowDelete = true;
+
+            // ====================================================================
+            // RELYASİYA / ƏLAQƏLİ CƏDVƏL YOXlANIŞI
+            // ====================================================================
+            if (currentTableId != 0 && (hardDelete == 0 || hardDelete == 1)) {
                 char relPath[256];
                 snprintf(relPath, sizeof(relPath), "%s/metadata/relations.db", current_db_path);
                 
@@ -594,25 +601,51 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
                     CompactRelation rel;
                     while (fRel.read((uint8_t*)&rel, sizeof(CompactRelation)) == sizeof(CompactRelation)) {
                         if (rel.is_deleted == 0 && rel.parent_table_id == currentTableId) {
+                            
                             char childTableName[MAX_NAME_LEN];
                             getTableNameById(rel.child_table_id, childTableName);
 
                             char childKeyColumnName[MAX_NAME_LEN] = "";
                             if (!getColumnNameById(rel.child_table_id, rel.child_col_id, childKeyColumnName)) continue;
 
-                            uint32_t parentIdVal = *(uint32_t *)(rowBuffer + 1);
+                            // Parent cədvəlin ID dəyərini götürürük (id adətən 1-ci ofsetdə yerləşir)
+                            uint32_t parentIdVal = 0;
+                            memcpy(&parentIdVal, rowBuffer + 1, 4);
 
+                            // Alt cədvəldə bu ID-yə bağlı data olub-olmadığını yoxlamaq üçün filtr qururuq
                             char *childWhereCols[] = {childKeyColumnName, NULL};
                             void *childWhereData[] = {&parentIdVal};
-                            const char *childWhereOps[] = {"=", NULL}; 
+                            const char *childWhereOps[] = {"=", NULL};
 
-                            deleteRows(childTableName, childWhereCols, childWhereData, childWhereOps, 1);
+                            // Alt cədvəldəki dataların sayını yoxlayırıq
+                            uint8_t childRowsCount = selectWhere(childTableName, (const char**)childWhereCols, childWhereData, childWhereOps);
+
+                            if (childRowsCount > 0) {
+                                if (hardDelete == 0) {
+                                    // 🛑 REJİM 0: Alt cədvəldə data var, silməyə icazə yoxdur!
+                                    Serial.printf("[MƏHDUDİYYƏT] '%s' cədvəlində əlaqəli data olduğu üçün '%s' silinə bilməz!\n", childTableName, tableName);
+                                    allowDelete = false;
+                                    break;
+                                } 
+                                else if (hardDelete == 1) {
+                                    // 🔄 REJİM 1: CASCADE - Alt cədvəldəki bağlı dataları da silirik
+                                    Serial.printf("[CASCADE] '%s' silindiyi üçün '%s' cədvəlindəki əlaqəli sətirlər də silinir...\n", tableName, childTableName);
+                                    deleteRows(childTableName, childWhereCols, childWhereData, childWhereOps, 1);
+                                }
+                            }
                         }
                     }
                     fRel.close();
                 }
             }
 
+            // 🛑 Əgər hardDelete = 0 şərti pozulubsa, bu sətri silmədən növbəti sətirlərə keçirik
+            if (!allowDelete) continue;
+
+            // ====================================================================
+            // REAL SİLİNMƏ ƏMƏLİYYATI (is_deleted = 1)
+            // ====================================================================
+            // REJİM 2 daxil olmaqla, əgər qadağa yoxdursa, əsas cədvəldəki sətir silinir
             rowBuffer[0] = 1; 
             if (file.seek(currentBlockOffset, SeekSet)) {
                 file.write(rowBuffer, header.rowSize);

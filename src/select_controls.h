@@ -181,117 +181,117 @@ void debugSelectStar(const char *tableName) {
 // ====================================================================
 // 9. MULTI-WHERE SELECT DATA
 // ====================================================================
-uint8_t selectWhere(const char *tableName, const char *whereColumnsName[], void *whereColumnsData[], const char *whereOperators[]){
-    if (strlen(current_db_path) == 0) {
-        printf("XETA: Evvelce bir verilener bazasina qoshulun!\n");
-        return 0;
-    }
+// uint8_t selectWhere(const char *tableName, const char *whereColumnsName[], void *whereColumnsData[], const char *whereOperators[]){
+//     if (strlen(current_db_path) == 0) {
+//         printf("XETA: Evvelce bir verilener bazasina qoshulun!\n");
+//         return 0;
+//     }
 
-    char tableFilePath[256];
-    snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
+//     char tableFilePath[256];
+//     snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
 
-    FILE *file = fopen(tableFilePath, "rb");
-    if (!file) {
-        printf("Error: '%s' cadvali tapilmadi!\n", tableName);
-        return 0;
-    }
+//     FILE *file = fopen(tableFilePath, "rb");
+//     if (!file) {
+//         printf("Error: '%s' cadvali tapilmadi!\n", tableName);
+//         return 0;
+//     }
 
-    DBHeader header;
-    fread(&header, sizeof(DBHeader), 1, file);
+//     DBHeader header;
+//     fread(&header, sizeof(DBHeader), 1, file);
 
-    ColumnConfig configs[MAX_COLUMNS + 1];
-    fread(configs, sizeof(ColumnConfig), header.columnCount, file);
+//     ColumnConfig configs[MAX_COLUMNS + 1];
+//     fread(configs, sizeof(ColumnConfig), header.columnCount, file);
 
-    // 1. WHERE şərtlərinin sayını hesablayaq
-    int whereCount = 0;
-    while (whereColumnsName[whereCount] != NULL) whereCount++;
+//     // 1. WHERE şərtlərinin sayını hesablayaq
+//     int whereCount = 0;
+//     while (whereColumnsName[whereCount] != NULL) whereCount++;
 
-    printf("\n=== FILTERED SELECT: %s ===\n", tableName);
+//     printf("\n=== FILTERED SELECT: %s ===\n", tableName);
 
-    // Cədvəlin sütun başlıqlarını ekrana çıxarırıq (Gizli sütun hariç)
-    for (int i = 1; i < header.columnCount; i++) {
-        printf("%-15s\t", configs[i].columnName);
-    }
-    printf("\n--------------------------------------------------\n");
+//     // Cədvəlin sütun başlıqlarını ekrana çıxarırıq (Gizli sütun hariç)
+//     for (int i = 1; i < header.columnCount; i++) {
+//         printf("%-15s\t", configs[i].columnName);
+//     }
+//     printf("\n--------------------------------------------------\n");
 
-    // ESP32 optimizasiyası: Dinamik malloc yerinə stack-də sabit ölçülü bufer (Maks 256 byte sətir üçün)
-    uint8_t rowBuffer[256]; 
-    if (header.rowSize > 256) {
-        printf("XETA: Satir olcusu desteklenen buferden boyukdur!\n");
-        fclose(file);
-        return 0;
-    }
+//     // ESP32 optimizasiyası: Dinamik malloc yerinə stack-də sabit ölçülü bufer (Maks 256 byte sətir üçün)
+//     uint8_t rowBuffer[256]; 
+//     if (header.rowSize > 256) {
+//         printf("XETA: Satir olcusu desteklenen buferden boyukdur!\n");
+//         fclose(file);
+//         return 0;
+//     }
 
-    uint8_t matchCount = 0;
-    long startPosition = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
+//     uint8_t matchCount = 0;
+//     long startPosition = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
 
-    // 2. Sətirləri diskdən parça-parça (tək-tək) oxuyuruq
-    for (uint32_t r = 0; r < header.rowCount; r++) {
-        long rowPos = startPosition + (r * header.rowSize);
-        fseek(file, rowPos, SEEK_SET);
-        fread(rowBuffer, header.rowSize, 1, file);
+//     // 2. Sətirləri diskdən parça-parça (tək-tək) oxuyuruq
+//     for (uint32_t r = 0; r < header.rowCount; r++) {
+//         long rowPos = startPosition + (r * header.rowSize);
+//         fseek(file, rowPos, SEEK_SET);
+//         fread(rowBuffer, header.rowSize, 1, file);
 
-        if (rowBuffer[0] == 1) continue; // Soft-delete filtri
+//         if (rowBuffer[0] == 1) continue; // Soft-delete filtri
 
-        // 3. Bütün şərtlərin ödənib-ödənmədiyini yoxlayırıq (AND məntiqi)
-        bool allConditionsMatch = true;
-        for (int w = 0; w < whereCount; w++) {
-            int currentOffset = 1;
-            int foundIdx = -1;
+//         // 3. Bütün şərtlərin ödənib-ödənmədiyini yoxlayırıq (AND məntiqi)
+//         bool allConditionsMatch = true;
+//         for (int w = 0; w < whereCount; w++) {
+//             int currentOffset = 1;
+//             int foundIdx = -1;
             
-            for (int i = 1; i < header.columnCount; i++) {
-                if (strcmp(configs[i].columnName, whereColumnsName[w]) == 0) {
-                    foundIdx = i;
-                    break;
-                }
-                currentOffset += configs[i].dataSize;
-            }
+//             for (int i = 1; i < header.columnCount; i++) {
+//                 if (strcmp(configs[i].columnName, whereColumnsName[w]) == 0) {
+//                     foundIdx = i;
+//                     break;
+//                 }
+//                 currentOffset += configs[i].dataSize;
+//             }
 
-            if (foundIdx == -1) {
-                allConditionsMatch = false;
-                break;
-            }
+//             if (foundIdx == -1) {
+//                 allConditionsMatch = false;
+//                 break;
+//             }
 
-            // `compareValues` köməkçi funksiyamız ilə binar müqayisə edirik
-            if (!compareValues(rowBuffer + currentOffset, whereColumnsData[w], whereOperators[w], configs[foundIdx].typeID)) {
-                allConditionsMatch = false;
-                break;
-            }
-        }
+//             // `compareValues` köməkçi funksiyamız ilə binar müqayisə edirik
+//             if (!compareValues(rowBuffer + currentOffset, whereColumnsData[w], whereOperators[w], configs[foundIdx].typeID)) {
+//                 allConditionsMatch = false;
+//                 break;
+//             }
+//         }
 
-        // 4. Əgər bütün WHERE şərtləri ödənirsə, sətri ekrana yazdırırıq
-        if (allConditionsMatch || whereCount == 0) {
-            int offset = 1;
-            for (int i = 1; i < header.columnCount; i++) {
-                if (configs[i].typeID == TYPE_UINT32 || configs[i].typeID == TYPE_INT) {
-                    uint32_t val;
-                    memcpy(&val, rowBuffer + offset, 4);
-                    printf("%-15u\t", val);
-                    offset += 4;
-                }
-                else if (configs[i].typeID == TYPE_UINT8) {
-                    uint8_t val = rowBuffer[offset];
-                    printf("%-15u\t", val);
-                    offset += 1;
-                }
-                else if (configs[i].typeID == TYPE_CHAR2) {
-                    int len = configs[i].dataSize;
-                    char strStr[64] = {0}; // Müvəqqəti string buferi
-                    memcpy(strStr, rowBuffer + offset, len);
-                    printf("%-15s\t", strStr);
-                    offset += len;
-                }
-            }
-            printf("\n");
-            matchCount++;
-        }
-    }
+//         // 4. Əgər bütün WHERE şərtləri ödənirsə, sətri ekrana yazdırırıq
+//         if (allConditionsMatch || whereCount == 0) {
+//             int offset = 1;
+//             for (int i = 1; i < header.columnCount; i++) {
+//                 if (configs[i].typeID == TYPE_UINT32 || configs[i].typeID == TYPE_INT) {
+//                     uint32_t val;
+//                     memcpy(&val, rowBuffer + offset, 4);
+//                     printf("%-15u\t", val);
+//                     offset += 4;
+//                 }
+//                 else if (configs[i].typeID == TYPE_UINT8) {
+//                     uint8_t val = rowBuffer[offset];
+//                     printf("%-15u\t", val);
+//                     offset += 1;
+//                 }
+//                 else if (configs[i].typeID == TYPE_CHAR2) {
+//                     int len = configs[i].dataSize;
+//                     char strStr[64] = {0}; // Müvəqqəti string buferi
+//                     memcpy(strStr, rowBuffer + offset, len);
+//                     printf("%-15s\t", strStr);
+//                     offset += len;
+//                 }
+//             }
+//             printf("\n");
+//             matchCount++;
+//         }
+//     }
 
-    fclose(file);
-    printf("--------------------------------------------------\n");
-    printf("Find rows count: %d\n==================================================\n\n", matchCount);
-    return matchCount;
-}
+//     fclose(file);
+//     printf("--------------------------------------------------\n");
+//     printf("Find rows count: %d\n==================================================\n\n", matchCount);
+//     return matchCount;
+// }
 
 
 
@@ -428,7 +428,7 @@ void selectJoinData(const char *parentTable, const char *childTable, const char 
 }
 
 
-uint8_t selectWhereInfo(const char *tableName, const char *whereColumnsName[], void *whereColumnsData[], const char *whereOperators[]){
+uint8_t selectWhere(const char *tableName, const char *whereColumnsName[], void *whereColumnsData[], const char *whereOperators[]){
     if (strlen(current_db_path) == 0) {
         printf("XETA: Evvelce bir verilener bazasina qoshulun!\n");
         return 0;
