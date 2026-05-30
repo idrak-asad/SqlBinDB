@@ -196,12 +196,12 @@ bool insertRows(const char *tableName, void *dataPointer[], int dataCount) {
             
             // BURADA DİQQƏTLİ OLUN: Sütunun tipinə görə kopyalama variantları
             // Əgər sütun Yazı (String / Char array) tipindədirsə:
-            if (configs[i].dataType == TYPE_TEXT) { // Sizin koddakı Text enum-ı
+            if (configs[i].typeID == TYPE_TEXT) { // Sizin koddakı Text enum-ı
                 const char* strData = (const char*)dataPointer[i];
                 strncpy((char*)&rowBuffer[currentOffset], strData, configs[i].dataLength);
             } 
             // Əgər sütun Integer (Tam ədəd) tipindədirsə:
-            else if (configs[i].dataType == TYPE_INT) {
+            else if (configs[i].typeID == TYPE_INT) {
                 int intData = *(int*)dataPointer[i]; // Pointer-dən dəyəri oxuyuruq
                 memcpy(&rowBuffer[currentOffset], &intData, sizeof(int));
             }
