@@ -459,12 +459,6 @@ uint8_t selectWhereInfo(const char *tableName, const char *whereColumnsName[], v
     printf("\n--------------------------------------------------\n");
 
     uint8_t rowBuffer[512]; 
-    if (header.rowSize > 512) {
-        printf("XETA: Satir olcusu desteklenen buferden boyukdur!\n");
-        fclose(file);
-        return 0;
-    }
-
     uint8_t matchCount = 0;
     long startPosition = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
 
@@ -473,15 +467,14 @@ uint8_t selectWhereInfo(const char *tableName, const char *whereColumnsName[], v
         fseek(file, rowPos, SEEK_SET);
         fread(rowBuffer, header.rowSize, 1, file);
 
-        if (rowBuffer[0] == 1) continue; // Soft-delete filtri (Silinmişləri keç)
+        if (rowBuffer[0] == 1) continue; // Silinmişləri keç
 
         bool allConditionsMatch = true;
 
         for (int w = 0; w < whereCount; w++) {
-            int currentOffset = 1; // Hər bir filtr üçün ofset mütləq 1-dən (is_deleted-dən sonra) başlamalıdır
+            int currentOffset = 1; 
             int foundIdx = -1;
             
-            // Sütunun ofsetini sıfırdan və tam təhlükəsiz hesablayırıq
             for (int i = 1; i < header.columnCount; i++) {
                 if (strcmp(configs[i].columnName, whereColumnsName[w]) == 0) {
                     foundIdx = i;
@@ -495,22 +488,23 @@ uint8_t selectWhereInfo(const char *tableName, const char *whereColumnsName[], v
                 break;
             }
 
-            // TİPƏ GÖRƏ TƏHLÜKƏSİZ MÜQAYİSƏ (compareValues funksiyasının xətalarını buradaca sığortalayırıq)
             bool conditionPassed = false;
             uint8_t *dbFieldPtr = rowBuffer + currentOffset;
             void *userValPtr = whereColumnsData[w];
 
+            // 🌟 İKİ DATANI DA STRING-Ə ÇEVİRİB NORMAL YOXLANILMASI:
             if (configs[foundIdx].typeID == TYPE_CHAR2) {
-                // Diskdəki mətni oxuyuruq (maksimum dataSize qədər)
-                char dbStr[64] = {0};
-                memcpy(dbStr, dbFieldPtr, configs[foundIdx].dataSize);
-                
-                // İstifadəçinin göndərdiyi mətni oxuyuruq
-                const char *userStr = (const char *)userValPtr;
+                // Diskdən oxunan sabit ölçülü binar mətni təmiz string edirik
+                char dbTemp[64] = {0};
+                memcpy(dbTemp, dbFieldPtr, configs[foundIdx].dataSize);
+                std::string dbStr(dbTemp);
 
-                // CHAR2 üçün strcmp istifadə edirik (arxadakı zibil baytlar bərabərliyi pozmasın deyə)
+                // İstifadəçinin axtardığı mətni string edirik
+                std::string userStr((const char *)userValPtr);
+
+                // İndi tam təhlükəsiz bərabərlik yoxlanışı (C++ string müqayisəsi)
                 if (strcmp(whereOperators[w], "=") == 0) {
-                    conditionPassed = (strcmp(dbStr, userStr) == 0);
+                    conditionPassed = (dbStr == userStr);
                 }
             } 
             else if (configs[foundIdx].typeID == TYPE_INT || configs[foundIdx].typeID == TYPE_UINT32) {
@@ -528,20 +522,19 @@ uint8_t selectWhereInfo(const char *tableName, const char *whereColumnsName[], v
                 if (strcmp(whereOperators[w], "=") == 0) conditionPassed = (dbVal == userVal);
             }
 
-            // İlk sətirdə hansı sütunun keçib-keçmədiyini görmək üçün DİAQNOSTİKA LOGU
+            // 🌟 Serial.format xətası Serial.printf ilə əvəzləndi:
             if (r == 0) {
                 Serial.print("[Diaqnostika] Sütun: "); Serial.print(whereColumnsName[w]);
-                Serial.println(" | Ofset: %d | TipID: %d | Netice: %s\n", 
+                Serial.printf(" | Ofset: %d | TipID: %d | Netice: %s\n", 
                               currentOffset, configs[foundIdx].typeID, conditionPassed ? "KECDİ" : "XETA");
             }
 
             if (!conditionPassed) {
                 allConditionsMatch = false;
-                break; // Bir şərt ödənmədisə, növbəti filtrlərə baxmağa ehtiyac yoxdur (AND məntiqi)
+                break; 
             }
         }
 
-        // Əgər bütün WHERE filtrləri uğurlu keçibsə, sətri ekrana çıxarırıq
         if (allConditionsMatch || whereCount == 0) {
             int offset = 1;
             for (int i = 1; i < header.columnCount; i++) {
