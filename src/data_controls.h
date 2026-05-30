@@ -747,24 +747,25 @@ uint8_t updateRows(const char *tableName, char *whereColumnsName[], void *whereC
 uint8_t deleteRowsByIndices(const char *tableName, uint32_t *rowIndices, uint8_t indicesCount) {
     if (strlen(current_db_path) == 0 || indicesCount == 0 || rowIndices == NULL) return 0;
 
-    char tableFilePath[256];
-    // ESP32 üçün real fiziki yol (Başına mount nöqtəsi mütləq əlavə edilməlidir)
-    snprintf(tableFilePath, sizeof(tableFilePath), "/littlefs%s/tables/%s.db", current_db_path, tableName);
+    // Standart C-nin fopen kilidini tam buraxması üçün 5ms gözləyirik (File Handle Release)
+    delay(5);
 
-    // "r+b" rejimi mövcud faylı silmədən daxilində həm oxumağa, həm də istənilən baytı dəyişməyə icazə verir
-    FILE *file = fopen(tableFilePath, "r+b");
+    char tableFilePath[256];
+    snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
+
+    // "r+" həm oxumaq, həm də mövcud datanın üzərinə yazmaq üçündür
+    File file = LittleFS.open(tableFilePath, "r+");
     if (!file) {
-        Serial.printf("[XƏTA] Silmək üçün fayl açılmadı (Yol: %s)!\n", tableFilePath);
+        Serial.printf("[XƏTA] Silmək üçün cədvəl faylı açılmadı! Yol: %s\n", tableFilePath);
         return 0;
     }
 
     DBHeader header;
-    if (fread(&header, sizeof(DBHeader), 1, file) != 1) {
-        fclose(file);
+    if (file.read((uint8_t*)&header, sizeof(DBHeader)) != sizeof(DBHeader)) {
+        file.close();
         return 0;
     }
 
-    // Header və sütun konfiqurasiyalarından sonrakı real datanın başlanğıcı
     long startOffset = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
     uint8_t deletedCount = 0;
     uint8_t deleteFlag = 1; // is_deleted = 1 edirik
@@ -777,24 +778,24 @@ uint8_t deleteRowsByIndices(const char *tableName, uint32_t *rowIndices, uint8_t
         // Tam olaraq hədəf sətrin ilk baytının (is_deleted) yerləşdiyi ofset
         long currentBlockOffset = startOffset + (targetRow * header.rowSize);
         
-        // Faylın həmin nöqtəsinə atlanırıq
-        if (fseek(file, currentBlockOffset, SEEK_SET) == 0) {
-            // Sətrin ilk baytını 1 (silinmiş) olaraq binar fayla yazırıq
-            size_t written = fwrite(&deleteFlag, sizeof(uint8_t), 1, file);
+        // SeekSet makrosu ilə birbaşa sətir başına keçirik
+        if (file.seek(currentBlockOffset, SeekSet)) {
+            size_t written = file.write(&deleteFlag, 1);
             
-            if (written == 1) {
+            if (written > 0) {
                 deletedCount++;
+                // Dəyişikliyi dərhal diskə məcburi yazırıq
+                file.flush(); 
                 Serial.printf("[KÖMƏKÇİ] Sıra No [%d] uğurla silindi (Ofset: %ld)\n", targetRow, currentBlockOffset);
             }
         }
     }
 
-    // Dəyişikliklərin dərhal diskə köçürülməsi və faylın bağlanması
-    fflush(file);
-    fclose(file);
-    
+    file.close();
     return deletedCount;
 }
+
+
 
 
 // Sıra nömrəsinə (r) görə sətir datasını ekrana çıxarır və ya buferə köçürür
