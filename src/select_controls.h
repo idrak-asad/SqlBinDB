@@ -289,7 +289,7 @@ uint8_t selectWhere(const char *tableName, const char *whereColumnsName[], void 
 
     fclose(file);
     printf("--------------------------------------------------\n");
-    printf("Tapilan sater sayi: %d\n==================================================\n\n", matchCount);
+    printf("Find rows count: %d\n==================================================\n\n", matchCount);
     return matchCount;
 }
 

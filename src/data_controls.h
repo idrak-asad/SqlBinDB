@@ -157,9 +157,12 @@ bool insertRows(const char *tableName, void *dataPointer[], int dataCount) {
     char tableFilePath[256];
     snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
 
-    // "r+" həm oxumaq, həm də mövcud faylın sonuna yazmaq imkanı verir
+    // "r+" həm oxumaq, həm də yazmaq üçün açır
     File file = LittleFS.open(tableFilePath, "r+");
-    if (!file) return false;
+    if (!file) {
+        Serial.println("Xəta: Fayl açıla bilmədi!");
+        return false;
+    }
 
     DBHeader header;
     file.read((uint8_t*)&header, sizeof(DBHeader));
@@ -170,20 +173,50 @@ bool insertRows(const char *tableName, void *dataPointer[], int dataCount) {
     // ESP32 RAM qorunması üçün stack allocation
     uint8_t rowBuffer[512]; 
     memset(rowBuffer, 0, header.rowSize);
-    rowBuffer[0] = 0; // is_deleted = 0 (Aktiv sətir)
+    
+    // 1. Bayt: is_deleted statusu (0 = Aktiv sətir)
+    rowBuffer[0] = 0; 
 
-    int pointerIdx = 0;
-    int currentOffset = 1;
+    // Datanın buffer-ə yığılması
+    // Diqqət: dataPointer massivindəki hər element bir sütuna uyğun gəlir
+    int currentOffset = 1; // is_deleted bitdikdən sonra
 
-    for (int i = 1; i < header.columnCount; i++) {
-        // AUTO INCREMENT və digər dataların rowBuffer-ə yığılması prosesi (Sizin orijinal dövrünüz)...
-        // (Bura toxunmursunuz, sizin daxili məntiqli kodunuz eynilə qalır)
+    for (int i = 0; i < header.columnCount; i++) {
+        // Əgər sütun AUTO INCREMENT-dirsə (Məsələn, ID sütunu)
+        if (i == 0) { 
+            int nextId = header.rowCount + 1; // Sadə auto-increment məntiqi
+            memcpy(&rowBuffer[currentOffset], &nextId, sizeof(int));
+            currentOffset += sizeof(int); // ID adətən 4 baytdır (int)
+            continue;
+        }
+
+        // Digər sütunlar üçün dataPointer-dən məlumatı götürürük
+        // Sizin ötürdüyünüz dataCount-dan çox sütun olarsa crash-ın qarşısını almaq üçün:
+        if (i < dataCount && dataPointer[i] != NULL) {
+            
+            // BURADA DİQQƏTLİ OLUN: Sütunun tipinə görə kopyalama variantları
+            // Əgər sütun Yazı (String / Char array) tipindədirsə:
+            if (configs[i].dataType == TYPE_TEXT) { // Sizin koddakı Text enum-ı
+                const char* strData = (const char*)dataPointer[i];
+                strncpy((char*)&rowBuffer[currentOffset], strData, configs[i].dataLength);
+            } 
+            // Əgər sütun Integer (Tam ədəd) tipindədirsə:
+            else if (configs[i].dataType == TYPE_INT) {
+                int intData = *(int*)dataPointer[i]; // Pointer-dən dəyəri oxuyuruq
+                memcpy(&rowBuffer[currentOffset], &intData, sizeof(int));
+            }
+        }
+
+        // Hər sütunun öz ölçüsü qədər offset-i irəli çəkirik
+        currentOffset += configs[i].dataLength; 
     }
 
-    // Əsas dəyişiklik: Faylın sonuna keçid və yazma əməliyyatı
-    // LittleFS-də faylın sonuna yazmaq üçün file.seek(0, SeekEnd) istifadə olunur
+    // Faylın sonuna keçid və yazma əməliyyatı
     if (file.seek(0, SeekEnd)) {
         file.write(rowBuffer, header.rowSize);
+    } else {
+        file.close();
+        return false;
     }
 
     // Başlığı yeniləmək (Sətir sayını 1 artırmaq)

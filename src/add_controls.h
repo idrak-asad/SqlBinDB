@@ -203,6 +203,15 @@ typedef struct {
 uint32_t last_inserted_id; // AUTO_INCREMENT izləmək üçün yeni bölmə
 } DBHeader;
 
+
+typedef struct {
+    
+    uint32_t rowCount;        // Hazırda bazada olan real sətir sayısı (maxRows-u keçə bilməz)
+    uint32_t maxRows;         // MƏKSİMUM SƏTİR LİMİTİ (Yeni)
+    uint32_t nextRowIndex;    // NÖVBƏTİ YAZILACAQ İNDEKS (0-dan maxRows-1 kimi fırlanır) (Yeni)
+uint32_t last_inserted_id; // AUTO_INCREMENT izləmək üçün yeni bölmə
+} DBHeader;
+
 typedef struct
 {
     char columnName[MAX_NAME_LEN];
