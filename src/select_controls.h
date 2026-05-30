@@ -531,7 +531,7 @@ uint8_t selectWhereInfo(const char *tableName, const char *whereColumnsName[], v
             // İlk sətirdə hansı sütunun keçib-keçmədiyini görmək üçün DİAQNOSTİKA LOGU
             if (r == 0) {
                 Serial.print("[Diaqnostika] Sütun: "); Serial.print(whereColumnsName[w]);
-                Serial.format(" | Ofset: %d | TipID: %d | Netice: %s\n", 
+                Serial.println(" | Ofset: %d | TipID: %d | Netice: %s\n", 
                               currentOffset, configs[foundIdx].typeID, conditionPassed ? "KECDİ" : "XETA");
             }
 
