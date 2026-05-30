@@ -160,7 +160,8 @@ bool insertRows(const char *tableName, void *dataPointer[], int dataCount) {
     // "r+" həm oxumaq, həm də mövcud faylın üzərinə yazmaq imkanı verir
     File file = LittleFS.open(tableFilePath, "r+");
     if (!file) {
-        Serial.println("Xeta: .db fayli acila bilmedi!");
+        Serial.print("Xeta: .db fayli acila bilmedi: ");
+        Serial.println(tableFilePath);
         return false;
     }
 
