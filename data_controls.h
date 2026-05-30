@@ -10,12 +10,7 @@
 // #include "index_controls.h"
 
 
-int getColumnIndexInConfig(ColumnConfig configs[], int colCount, const char *colName);
-int getColumnOffsetInRow(ColumnConfig configs[], int colCount, int colIdx);
-bool helperCheckCondition(uint8_t *dataPtr, uint8_t dataType, void *whereData, const char *op);
-uint8_t getTableIdByName(const char *tableName);
-bool getTableNameById(uint8_t tableId, char *outName);
-bool getColumnNameById(uint8_t tableId, uint8_t colId, char *outColName);
+
 
 
 // bool insertRows(const char *tableName, void *dataPointer[], int dataCount)
@@ -160,11 +155,40 @@ bool insertRows(const char *tableName, void *dataPointer[], int dataCount) {
     if (strlen(current_db_path) == 0) return false;
 
     char tableFilePath[256];
-    snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
+    
+    // LITTLEFS ÜÇÜN YOLUN DÜZƏLDİLMƏSİ (Kritik Hissə):
+    // Əgər current_db_path "/littlefs" ilə başlayırsa, LittleFS üçün o hissəni silirik
+    const char *cleanPath = current_db_path;
+    if (strncmp(current_db_path, "/littlefs", 9) == 0) {
+        cleanPath = current_db_path + 9; // "/littlefs" sözünü ötürür, məsələn: "/sqlBinDB/my_DB" olur
+    }
 
-    // "r+" həm oxumaq, həm də mövcud faylın sonuna yazmaq imkanı verir
+    snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", cleanPath, tableName);
+
+    Serial.print("[Diaqnostika] LittleFS ile acilmaga calisilan real yol: ");
+    Serial.println(tableFilePath);
+
+    // Faylı açmağa çalışırıq
     File file = LittleFS.open(tableFilePath, "r+");
-    if (!file) return false;
+    
+    if (!file) {
+        Serial.println("[XƏTA] 'r+' rejimində tapılmadı, 'r' (oxuma) rejimi yoxlanılır...");
+        file = LittleFS.open(tableFilePath, "r");
+    }
+
+    if (!file) {
+        Serial.println("[KRİTİK XƏTA] LittleFS bu faylı heç bir rejimdə aça bilmədi!");
+        
+        // Səbəbi anlamaq üçün diski yoxlayaq:
+        if (!LittleFS.exists(tableFilePath)) {
+            Serial.println("-> SƏBƏB: Fayl bu adda və bu yolda diskdə FİZİKİ OLARAQ YOXDUR!");
+        } else {
+            Serial.println("-> SƏBƏB: Fayl var, lFS icazə vermir və ya başqa funksiya tərəfindən açıq saxlanılıb (Kilitlənib)!");
+        }
+        return false;
+    }
+
+    Serial.println("[UĞURLU] Fayl LittleFS tərəfindən uğurla açıldı. Yazma prosesi başlayır...");
 
     DBHeader header;
     file.read((uint8_t*)&header, sizeof(DBHeader));
@@ -178,21 +202,94 @@ bool insertRows(const char *tableName, void *dataPointer[], int dataCount) {
     rowBuffer[0] = 0; // is_deleted = 0 (Aktiv sətir)
 
     int pointerIdx = 0;
-    int currentOffset = 1;
+    int currentOffset = 1; // is_deleted baytından sonra başlayır
 
     for (int i = 1; i < header.columnCount; i++) {
-        // AUTO INCREMENT və digər dataların rowBuffer-ə yığılması prosesi (Sizin orijinal dövrünüz)...
-        // (Bura toxunmursunuz, sizin daxili məntiqli kodunuz eynilə qalır)
+        
+        // 1. AUTO INCREMENT YOXLANILMASI
+        if (configs[i].constraints & FLAG_AUTO_INCREMENT) {
+            header.last_inserted_id++;
+            uint32_t autoId = header.last_inserted_id;
+            memcpy(rowBuffer + currentOffset, &autoId, sizeof(uint32_t));
+            currentOffset += sizeof(uint32_t);
+            // Auto increment sütunu üçün dataPointer-dən məlumat oxunmur, pointerIdx ARTMIR!
+            continue; 
+        }
+
+        // Əgər göndərilən dataların sayı sütun sayından azdırsa crash-ın qarşısını almaq üçün qoruma
+        if (pointerIdx >= dataCount || dataPointer[pointerIdx] == NULL) {
+            // Əgər data çatışmırsa, boşluq buraxıb offset-i irəli çəkirik
+            currentOffset += configs[i].dataSize;
+            pointerIdx++;
+            continue;
+        }
+
+        // 2. SİZİN SİSTEMİN REAL TİPLƏRİNƏ GÖRƏ BUFFERƏ KOPIYALAMA (typeID istifadə edilir)
+        if (configs[i].typeID == TYPE_INT || configs[i].typeID == TYPE_UINT32) {
+            memcpy(rowBuffer + currentOffset, dataPointer[pointerIdx], 4);
+            currentOffset += 4;
+        }
+        else if (configs[i].typeID == TYPE_UINT8) {
+            memcpy(rowBuffer + currentOffset, dataPointer[pointerIdx], 1);
+            currentOffset += 1;
+        }
+        else if (configs[i].typeID == TYPE_FLOAT) {
+            memcpy(rowBuffer + currentOffset, dataPointer[pointerIdx], 4);
+            currentOffset += 4;
+        }
+        else if (configs[i].typeID == TYPE_FIXED_POINT) {
+            // Sizin RAM qoruyan 2 baytlıq tipiniz
+            memcpy(rowBuffer + currentOffset, dataPointer[pointerIdx], 2);
+            currentOffset += 2;
+        }
+        else if (configs[i].typeID == TYPE_CHAR2) {
+            // Sabit ölçülü mətn (Sizin configs[i].dataSize uzunluğunda)
+            char tempStr[MAX_CHAR] = {0};
+            strncpy(tempStr, (const char *)dataPointer[pointerIdx], configs[i].dataSize - 1);
+            memcpy(rowBuffer + currentOffset, tempStr, configs[i].dataSize);
+            currentOffset += configs[i].dataSize;
+        }
+        else if (configs[i].typeID == TYPE_VARCHAR2) {
+            // Dinamik varchar sistemi (.varchardb faylına yazır)
+            char varcharPath[256];
+            snprintf(varcharPath, sizeof(varcharPath), "%s/tables/%s.varchardb", current_db_path, tableName);
+            
+            File vFile = LittleFS.open(varcharPath, "a+"); // Əgər yoxdursa yaradır, varsa sonuna əlavə edir
+            uint32_t vOffset = 0;
+            if (vFile) {
+                vOffset = vFile.size();
+                const char *userStr = (const char *)dataPointer[pointerIdx];
+                uint16_t strLen = strlen(userStr);
+                vFile.write((uint8_t*)&strLen, sizeof(uint16_t));
+                vFile.write((const uint8_t*)userStr, strLen);
+                vFile.close();
+            }
+            // Əsas faylda .varchardb-dəki yerin ofsetini (pointer) saxlayırıq
+            memcpy(rowBuffer + currentOffset, &vOffset, sizeof(uint32_t));
+            currentOffset += sizeof(uint32_t);
+        }
+
+        pointerIdx++; // Növbəti ötürülən məlumata keçid
     }
 
-    // Əsas dəyişiklik: Faylın sonuna keçid və yazma əməliyyatı
-    // LittleFS-də faylın sonuna yazmaq üçün file.seek(0, SeekEnd) istifadə olunur
-    if (file.seek(0, SeekEnd)) {
+    // 3. DAİRƏVİ (CIRCULAR) SİSTEMƏ UYGUN YAZMA NÖQTƏSİNİN HESABLANMASI
+    // Sizin data_controls.h-dakı orijinal riyazi modeliniz:
+    long writeOffset = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount) + 
+                       ((header.rowCount % header.maxRows) * header.rowSize);
+
+    if (file.seek(writeOffset, SeekSet)) {
         file.write(rowBuffer, header.rowSize);
+    } else {
+        file.close();
+        return false;
     }
 
-    // Başlığı yeniləmək (Sətir sayını 1 artırmaq)
-    header.rowCount++;
+    // Əgər cədvəlin limiti (maxRows) dolmayıbsa ümumi sətir sayını artırırıq
+    if (header.rowCount < header.maxRows) {
+        header.rowCount++;
+    }
+
+    // Başlığı (yeni rowCount və last_inserted_id-ni) faylın əvvəlinə yenidən yazırıq
     if (file.seek(0, SeekSet)) {
         file.write((uint8_t*)&header, sizeof(DBHeader));
     }
@@ -448,6 +545,7 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
     char tableFilePath[256];
     snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
 
+    // "r+" həm oxumaq, həm də üzərinə yaza bilmək üçün mütləqdir
     File file = LittleFS.open(tableFilePath, "r+");
     if (!file) return 0;
 
@@ -461,13 +559,16 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
     uint32_t deletedCount = 0;
     long startOffset = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
 
+    // İlk öncə cədvəlin ID-sini alırıq (Relyasiyaları yoxlamaq üçün)
+    uint8_t currentTableId = getTableIdByName(tableName);
+
     for (uint32_t r = 0; r < header.rowCount; r++) {
         long currentBlockOffset = startOffset + (r * header.rowSize);
         
         if (!file.seek(currentBlockOffset, SeekSet)) continue;
         if (file.read(rowBuffer, header.rowSize) != header.rowSize) continue;
 
-        if (rowBuffer[0] == 1) continue; 
+        if (rowBuffer[0] == 1) continue; // Artıq silinmiş sətirdirsə, keç
 
         bool matches = true;
         if (whereColumnsName != NULL) {
@@ -478,17 +579,20 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
 
                 int colOffset = getColumnOffsetInRow(configs, header.columnCount, colIdx);
                 
-                // DÜZƏLİŞ: .type yerinə .typeID yazıldı!
                 bool conditionMet = helperCheckCondition(rowBuffer + colOffset, configs[colIdx].typeID, whereColumnsData[w], whereOperators[w]);
-
                 if (!conditionMet) { matches = false; break; }
                 w++;
             }
         }
 
+        // Əgər silinmək istənən sətir tapıldısa:
         if (matches) {
-            uint8_t currentTableId = getTableIdByName(tableName);
-            if (currentTableId != 0) {
+            bool allowDelete = true;
+
+            // ====================================================================
+            // RELYASİYA / ƏLAQƏLİ CƏDVƏL YOXlANIŞI
+            // ====================================================================
+            if (currentTableId != 0 && (hardDelete == 0 || hardDelete == 1)) {
                 char relPath[256];
                 snprintf(relPath, sizeof(relPath), "%s/metadata/relations.db", current_db_path);
                 
@@ -497,25 +601,51 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
                     CompactRelation rel;
                     while (fRel.read((uint8_t*)&rel, sizeof(CompactRelation)) == sizeof(CompactRelation)) {
                         if (rel.is_deleted == 0 && rel.parent_table_id == currentTableId) {
+                            
                             char childTableName[MAX_NAME_LEN];
                             getTableNameById(rel.child_table_id, childTableName);
 
                             char childKeyColumnName[MAX_NAME_LEN] = "";
                             if (!getColumnNameById(rel.child_table_id, rel.child_col_id, childKeyColumnName)) continue;
 
-                            uint32_t parentIdVal = *(uint32_t *)(rowBuffer + 1);
+                            // Parent cədvəlin ID dəyərini götürürük (id adətən 1-ci ofsetdə yerləşir)
+                            uint32_t parentIdVal = 0;
+                            memcpy(&parentIdVal, rowBuffer + 1, 4);
 
+                            // Alt cədvəldə bu ID-yə bağlı data olub-olmadığını yoxlamaq üçün filtr qururuq
                             char *childWhereCols[] = {childKeyColumnName, NULL};
                             void *childWhereData[] = {&parentIdVal};
-                            const char *childWhereOps[] = {"=", NULL}; 
+                            const char *childWhereOps[] = {"=", NULL};
 
-                            deleteRows(childTableName, childWhereCols, childWhereData, childWhereOps, 1);
+                            // Alt cədvəldəki dataların sayını yoxlayırıq
+                            uint8_t childRowsCount = selectWhere(childTableName, (const char**)childWhereCols, childWhereData, childWhereOps);
+
+                            if (childRowsCount > 0) {
+                                if (hardDelete == 0) {
+                                    // 🛑 REJİM 0: Alt cədvəldə data var, silməyə icazə yoxdur!
+                                    Serial.printf("[MƏHDUDİYYƏT] '%s' cədvəlində əlaqəli data olduğu üçün '%s' silinə bilməz!\n", childTableName, tableName);
+                                    allowDelete = false;
+                                    break;
+                                } 
+                                else if (hardDelete == 1) {
+                                    // 🔄 REJİM 1: CASCADE - Alt cədvəldəki bağlı dataları da silirik
+                                    Serial.printf("[CASCADE] '%s' silindiyi üçün '%s' cədvəlindəki əlaqəli sətirlər də silinir...\n", tableName, childTableName);
+                                    deleteRows(childTableName, childWhereCols, childWhereData, childWhereOps, 1);
+                                }
+                            }
                         }
                     }
                     fRel.close();
                 }
             }
 
+            // 🛑 Əgər hardDelete = 0 şərti pozulubsa, bu sətri silmədən növbəti sətirlərə keçirik
+            if (!allowDelete) continue;
+
+            // ====================================================================
+            // REAL SİLİNMƏ ƏMƏLİYYATI (is_deleted = 1)
+            // ====================================================================
+            // REJİM 2 daxil olmaqla, əgər qadağa yoxdursa, əsas cədvəldəki sətir silinir
             rowBuffer[0] = 1; 
             if (file.seek(currentBlockOffset, SeekSet)) {
                 file.write(rowBuffer, header.rowSize);
