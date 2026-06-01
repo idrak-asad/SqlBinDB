@@ -239,6 +239,9 @@ void executeSQL(const char *sql)
 // ----------------------------------------------------------------
     // ENHANCED CREATE TABLE PARSER (MAX_ROWS və CHILD_TABLES Dəstəkli)
     // ----------------------------------------------------------------
+  // ----------------------------------------------------------------
+    // ADVANCED CREATE TABLE PARSER (CHILD_TABLES & PARENT_TABLES AUTO-INJECTION)
+    // ----------------------------------------------------------------
     if (matchKeyword(&cursor, "CREATE TABLE")) {
         char tableName[64] = {0};
 
@@ -248,8 +251,8 @@ void executeSQL(const char *sql)
             // 1. İSTİFADƏÇİNİN YAZDIĞI ƏSAS SÜTUNLARI OXU
             if (extractParentheses(&cursor, schemaBuf, sizeof(schemaBuf))) {
                 
-                #define MAX_PARSED_COLS 20
-                char colNamesBuf[MAX_PARSED_COLS][32] = {0};
+                #define MAX_PARSED_COLS 25 // Suffix sütunları artacağı üçün limiti 25 etdik
+                char colNamesBuf[MAX_PARSED_COLS][64] = {0}; // Şəkilçilər üçün ölçünü 64 etdik
                 char colTypesBuf[MAX_PARSED_COLS][32] = {0};
                 char colConstraintsBuf[MAX_PARSED_COLS][64] = {0};
 
@@ -265,7 +268,7 @@ void executeSQL(const char *sql)
                     schemaCursor = skipSpaces(schemaCursor);
                     if (*schemaCursor == '\0') break;
 
-                    if (!extractWord(&schemaCursor, colNamesBuf[colCount], 32)) break;
+                    if (!extractWord(&schemaCursor, colNamesBuf[colCount], 64)) break;
                     columnNames[colCount] = colNamesBuf[colCount];
 
                     char baseType[16] = {0};
@@ -289,7 +292,7 @@ void executeSQL(const char *sql)
                     }
                     columnTypes[colCount] = colTypesBuf[colCount];
 
-                    // Constraint-ləri növbəti vergülə qədər oxu
+                    // Constraint-ləri oxu (NOT NULL və s.)
                     schemaCursor = skipSpaces(schemaCursor);
                     int cIdx = 0;
                     while (*schemaCursor && *schemaCursor != ',') {
@@ -306,89 +309,110 @@ void executeSQL(const char *sql)
                     colCount++;
                 }
 
-                // 🌟 2. MAX_ROWS PARAMETRİNİN PARÇALANMASI (YENİ ƏLAVƏ)
-                uint32_t maxRowsValue = 1000; // Default dəyər (əgər sorğuda yazılmazsa)
-                
+                // 2. MAX_ROWS PARAMETRİNİN PARÇALANMASI
+                uint32_t maxRowsValue = 1000; 
                 cursor = skipSpaces(cursor);
                 if (matchKeyword(&cursor, "MAX_ROWS")) {
                     cursor = skipSpaces(cursor);
-                    
-                    // Əgər MAX_ROWS=1000 formatındadırsa, '=' işarəsini təhlükəsiz keçirik
-                    if (*cursor == '=') {
-                        cursor++; 
-                        cursor = skipSpaces(cursor);
-                    }
-                    
-                    // Rəqəmi oxuyuruq
+                    if (*cursor == '=') { cursor++; cursor = skipSpaces(cursor); }
                     char rowBuf[16] = {0};
                     int rIdx = 0;
                     while (*cursor && isdigit((unsigned char)*cursor) && rIdx < 15) {
                         rowBuf[rIdx++] = *cursor++;
                     }
-                    
-                    if (rIdx > 0) {
-                        maxRowsValue = (uint32_t)atoi(rowBuf);
-                    }
+                    if (rIdx > 0) maxRowsValue = (uint32_t)atoi(rowBuf);
                 }
 
-                // 🌟 3. CHILD_TABLES BLOKUNU OXU VƏ SÜTUN KİMİ ENJEKTE ET
+                // 🌟 3. CHILD_TABLES BLOKU: [child_adı]_first_id (INT) ENJEKSİYASI
                 cursor = skipSpaces(cursor);
-                int childCount = 0;
-
                 if (matchKeyword(&cursor, "CHILD_TABLES")) {
                     char childBuf[256] = {0};
                     if (extractParentheses(&cursor, childBuf, sizeof(childBuf))) {
                         const char* childCursor = childBuf;
-                        
                         while (*childCursor && colCount < MAX_PARSED_COLS) {
                             childCursor = skipSpaces(childCursor);
                             if (*childCursor == '\0') break;
 
                             char tempChildName[32] = {0};
-                            if (extractWord(&childCursor, tempChildName, 32)) {
+                            if (extractWord(&childCursor, tempChildName, sizeof(tempChildName))) {
                                 
-                                // Child adını sütun kimi massivə daxil edirik
-                                strncpy(colNamesBuf[colCount], tempChildName, 31);
+                                // Adın formalaşdırılması: [child_table_name]_first_id
+                                strcpy(colNamesBuf[colCount], tempChildName);
+                                strcat(colNamesBuf[colCount], "_first_id");
                                 columnNames[colCount] = colNamesBuf[colCount];
 
-                                // Tip məcburi olaraq "INT" təyin edilir
                                 strcpy(colTypesBuf[colCount], "INT");
                                 columnTypes[colCount] = colTypesBuf[colCount];
-
-                                // Child sütunları üçün constraint boş buraxılır
+                                
                                 strcpy(colConstraintsBuf[colCount], ""); 
                                 constraints[colCount] = colConstraintsBuf[colCount];
 
                                 colCount++;
-                                childCount++;
                             }
-
                             childCursor = skipSpaces(childCursor);
                             if (*childCursor == ',') childCursor++;
                         }
                     }
                 }
 
-                // Massivlərin sonunu möhürləyirik
+                // 🌟 4. PARENT_TABLES BLOKU: [parent]_id (INT) və [parent]_next_id (INT) ENJEKSİYASI
+                cursor = skipSpaces(cursor);
+                if (matchKeyword(&cursor, "PARENT_TABLES")) {
+                    char parentBuf[256] = {0};
+                    if (extractParentheses(&cursor, parentBuf, sizeof(parentBuf))) {
+                        const char* parentCursor = parentBuf;
+                        while (*parentCursor && colCount < MAX_PARSED_COLS) {
+                            parentCursor = skipSpaces(parentCursor);
+                            if (*parentCursor == '\0') break;
+
+                            char tempParentName[32] = {0};
+                            if (extractWord(&parentCursor, tempParentName, sizeof(tempParentName))) {
+                                
+                                // Sütun A: [parent_table_name]_id
+                                strcpy(colNamesBuf[colCount], tempParentName);
+                                strcat(colNamesBuf[colCount], "_id");
+                                columnNames[colCount] = colNamesBuf[colCount];
+                                strcpy(colTypesBuf[colCount], "INT");
+                                columnTypes[colCount] = colTypesBuf[colCount];
+                                strcpy(colConstraintsBuf[colCount], "");
+                                constraints[colCount] = colConstraintsBuf[colCount];
+                                colCount++;
+
+                                // Sütun B: [parent_table_name]_next_id
+                                if (colCount < MAX_PARSED_COLS) {
+                                    strcpy(colNamesBuf[colCount], tempParentName);
+                                    strcat(colNamesBuf[colCount], "_next_id");
+                                    columnNames[colCount] = colNamesBuf[colCount];
+                                    strcpy(colTypesBuf[colCount], "INT");
+                                    columnTypes[colCount] = colTypesBuf[colCount];
+                                    strcpy(colConstraintsBuf[colCount], "");
+                                    constraints[colCount] = colConstraintsBuf[colCount];
+                                    colCount++;
+                                }
+                            }
+                            parentCursor = skipSpaces(parentCursor);
+                            if (*parentCursor == ',') parentCursor++;
+                        }
+                    }
+                }
+
+                // Massivlərin sonunun NULL ilə bağlanması
                 columnNames[colCount] = NULL;
                 columnTypes[colCount] = NULL;
                 constraints[colCount] = NULL;
 
-                // 🌟 4. MÜHƏRRİKƏ ÖTÜRÜLMƏ
-                // Artıq maxRowsValue parametri də düzgün şəkildə funksiyanıza gedir.
+                // 5. MÜHƏRRİKƏ GÖNDƏRİLMƏ
                 bool success = createTable(tableName, columnNames, columnTypes, constraints, false, maxRowsValue);
                 
                 if (success) {
-                    printf("\n[SİSTEM TAM ÖDƏDİ]: '%s' cədvəli yaradıldı.\n", tableName);
-                    printf(" -> Təyin olunan MAX_ROWS limit: %d\n", maxRowsValue);
-                    printf(" -> Ümumi sütun sayı (Orijinal + Auto-injected Child): %d\n", colCount);
+                    printf("\n[SİSTEM TAM ÖDƏYİR]: '%s' cədvəli relyasiya sütunları ilə uğurla yığıldı.\n", tableName);
+                    printf(" -> MAX_ROWS Limiti: %d\n", maxRowsValue);
+                    printf(" -> Ümumi Sütun Sayı (Orijinal + İnyeksiya): %d\n", colCount);
                     for (int i = 0; i < colCount; i++) {
                         printf("   -> [%d] Sütun: Ad='%s', Tip='%s', Constraint='%s'\n", 
                                i + 1, columnNames[i], columnTypes[i], constraints[i]);
                     }
                 }
-            } else {
-                printf("SİNTAKSİS XƏTASI: Sütun strukturu tapılmadı.\n");
             }
         }
         return;

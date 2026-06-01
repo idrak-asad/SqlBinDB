@@ -65,7 +65,7 @@ extern "C" {
 // extern char current_db_path[256];
 
 
-#include "sql_pars_controls.h"
+
 #include "add_controls.h"
 #include "select_controls.h"
 
@@ -76,6 +76,7 @@ extern "C" {
 #include "relation_controls.h" // Sizin fayl adındakı "e" hərfi ilə (reletion)
 
 #include "index_controls.h"
+#include "sql_pars_controls.h"
 
 #ifdef __cplusplus
 }

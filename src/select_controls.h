@@ -35,6 +35,11 @@ void selectJoinWhereData(const char *parentTable, const char *childTable,
                          const char *whereOperators[], int conditionCount){
                             
                          }
+void parseJoinCondition(const char *joinCond[], const char *parentCol[], const char *childCol[]);
+
+void parseJoinCondition(const char *joinCond[], const char *parentCol[], const char *childCol[]){
+    
+}
 
 
 void selectData(const char *tableName) {
