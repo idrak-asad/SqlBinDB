@@ -31,7 +31,7 @@ bool createDb(const char *DbName, const char *DbPsw, bool reCreate);
 bool dropDb(char *DbName, char *DbPsw);
 bool connectDb(const char *DbName, const char *DbPsw);
 bool disConnectDb();
-void selectDb(char *DbName);
+void selectDb(const char *DbName);
 
 void initSystem() {
     Serial.println("\n--- [SqlBinDB] Sistem Başladılır ---");
@@ -223,7 +223,7 @@ bool disConnectDb() {
 // ====================================================================
 // SELECT DATABASE
 // ====================================================================
-void selectDb(char *DbName) {
+void selectDb(const char *DbName) {
   if (strcmp(DbName, "*") == 0) {
     FILE *f = fopen(MASTER_FILE, "rb");
     if (!f) {
