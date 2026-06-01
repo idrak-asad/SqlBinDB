@@ -57,7 +57,8 @@ void selectData(const char *tableName)
     }
 
     DBHeader header;
-    fread(&header, sizeof(DBHeader), 1, file);
+    // fread(&header, sizeof(DBHeader), 1, file);
+    file.read((uint8_t*)&header, sizeof(DBHeader));
 
     ColumnConfig configs[MAX_COLUMNS + 1];
     // fread(configs, sizeof(ColumnConfig), header.columnCount, file);
@@ -75,7 +76,8 @@ void selectData(const char *tableName)
 
     for (uint32_t r = 0; r < header.rowCount; r++)
     {
-        fseek(file, startOffset + (r * header.rowSize), SEEK_SET);
+        // fseek(file, startOffset + (r * header.rowSize), SEEK_SET);
+        file.seek(startOffset + (r * header.rowSize), SeekSet);
         // fread(rowBuffer, header.rowSize, 1, file);
         file.read((uint8_t *)rowBuffer, header.rowSize);
 
