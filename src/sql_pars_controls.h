@@ -114,7 +114,7 @@ void extractUntilKeywordOrEnd(const char **cursor, const char *keyword, char *bu
 // ====================================================================
 // Əsas SQL Analiz və İdarəetmə Mərkəzi
 // ====================================================================
-void executeSQL(const char *sql)
+bool executeSQL(const char *sql)
 {
     const char *cursor = sql;
     cursor = skipSpaces(cursor);
@@ -129,7 +129,7 @@ void executeSQL(const char *sql)
     if (matchKeyword(&cursor, "SHOW DATABASES") || matchKeyword(&cursor, "SHOW DATABASE"))
     {
         printf("[PROSES İCRA OLUNUR]: Mərkəzi registrdən ('master_dbs.db') aktiv olan bütün verilənlər bazalarının siyahısı oxunur.\n");
-        selectDb("*".c_str());
+        selectDb("*");
         return;
     }
 
@@ -139,7 +139,7 @@ void executeSQL(const char *sql)
     if (matchKeyword(&cursor, "SHOW TABLES") || matchKeyword(&cursor, "SHOW TABLE"))
     {
         printf("[PROSES İCRA OLUNUR]: Hazırkı aktiv bazanın 'metadata/tables.db' faylından silinməmiş cədvəllərin adları ekrana çıxarılır.\n");
-        selectTables("*".c_str());
+        selectTables("*");
         return;
     }
 
@@ -545,6 +545,7 @@ void executeSQL(const char *sql)
     // ----------------------------------------------------------------
     if (matchKeyword(&cursor, "INSERT"))
     {
+        int insertMode=0;
         // Standart "OR REPLACE" və ya "OR IGNORE" sintaksisini yoxlayırıq
         if (matchKeyword(&cursor, "OR REPLACE"))
         {
@@ -638,7 +639,7 @@ void executeSQL(const char *sql)
         bool hasJoin = false;
         bool hasWhere = false;
         extractUntilKeywordOrEnd(&cursor, "FROM", columnsBuf, sizeof(columnsBuf));
-        trimSpaces(columnsBuf);
+        skipSpaces(columnsBuf);
 
         if (matchKeyword(&cursor, "FROM"))
         {
@@ -654,7 +655,7 @@ void executeSQL(const char *sql)
                 {
                     // Əgər WHERE varsa, WHERE-ə qədər oxu, yoxdursa sorğunun sonuna qədər
                     extractUntilKeywordOrEnd(&cursor, "WHERE", joinCond, sizeof(joinCond));
-                    trimSpaces(joinCond);
+                    skipSpaces(joinCond);
                 }
                 else
                 {
@@ -668,7 +669,7 @@ void executeSQL(const char *sql)
             {
                 hasWhere = true;
                 extractUntilKeywordOrEnd(&cursor, ";", whereCond, sizeof(whereCond));
-                trimSpaces(whereCond);
+                skipSpaces(whereCond);
             }
 
             // ---- FUNKSİYALARIN ÇAĞIRILMA MƏNTİQİ ----
@@ -690,9 +691,9 @@ void executeSQL(const char *sql)
                 int val = 5;
                 void *vals[] = {&val};
                 const char *ops[] = {"="};
-                uint8_t types[] = {1}; // 1 = INT təmsili
+                // uint8_t types[] = {1}; // 1 = INT təmsili
 
-                selectWhere(table1, cols, vals, types, ops, 1);
+                selectWhere(table1, cols, vals, ops);
             }
             else if (hasJoin && !hasWhere)
             {

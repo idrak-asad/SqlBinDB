@@ -15,9 +15,8 @@ void selectData(const char *tableName);
 uint8_t selectWhere(const char *tableName, 
                     const char *whereColumnsName[], 
                     void *whereColumnsData[], 
-                    uint8_t whereDataTypes[], // Sütun tipləri (Mütləqdir!)
-                    const char *whereOperators[], 
-                    int conditionCount);
+                    // uint8_t whereDataTypes[], // Sütun tipləri (Mütləqdir!)
+                    const char *whereOperators[]);
 
 // 3. Sadə JOIN: SELECT * FROM t1 JOIN t2 ON t1.id = t2.t1_id
 void selectJoinData(const char *parentTable, const char *childTable, 
@@ -35,10 +34,10 @@ void selectJoinWhereData(const char *parentTable, const char *childTable,
                          const char *whereOperators[], int conditionCount){
                             
                          }
-void parseJoinCondition(const char *joinCond[], const char *parentCol[], const char *childCol[]);
+void parseJoinCondition(char *joinCond[], char *parentCol[], char *childCol[]);
 
-void parseJoinCondition(const char *joinCond[], const char *parentCol[], const char *childCol[]){
-    
+void parseJoinCondition(char *joinCond[], char *parentCol[], char *childCol[]){
+
 }
 
 
@@ -55,7 +54,8 @@ void selectData(const char *tableName) {
     fread(&header, sizeof(DBHeader), 1, file);
 
     ColumnConfig configs[MAX_COLUMNS + 1];
-    fread(configs, sizeof(ColumnConfig), header.columnCount, file);
+    // fread(configs, sizeof(ColumnConfig), header.columnCount, file);
+    file.read((uint8_t*)configs, sizeof(ColumnConfig) * header.columnCount);
 
     printf("\n=== TABLE DATA: %s ===\n", tableName);
     for (int i = 1; i < header.columnCount; i++) {
@@ -68,7 +68,8 @@ void selectData(const char *tableName) {
 
     for (uint32_t r = 0; r < header.rowCount; r++) {
         fseek(file, startOffset + (r * header.rowSize), SEEK_SET);
-        fread(rowBuffer, header.rowSize, 1, file);
+        // fread(rowBuffer, header.rowSize, 1, file);
+        file.read((uint8_t*)rowBuffer, header.rowSize);
 
         if (rowBuffer[0] == 1) continue; // Silinmiş sətirləri keçirik
 
@@ -129,7 +130,8 @@ void selectData(const char *tableName) {
         }
         printf("\n");
     }
-    fclose(file);
+    // fclose(file);
+    file.close();
 }
 
 
@@ -155,7 +157,8 @@ void debugSelectStar(const char *tableName) {
     fread(&header, sizeof(DBHeader), 1, file);
 
     ColumnConfig configs[MAX_COLUMNS + 1];
-    fread(configs, sizeof(ColumnConfig), header.columnCount, file);
+    // fread(configs, sizeof(ColumnConfig), header.columnCount, file);
+    file.read((uint8_t*)configs, sizeof(ColumnConfig) * header.columnCount);
 
     printf("\n==================================================\n");
     printf("     RAW BINARY DUMP (CADVEL: %s)\n", tableName);
@@ -169,7 +172,8 @@ void debugSelectStar(const char *tableName) {
     uint8_t *rowBuffer = (uint8_t *)malloc(header.rowSize);
 
     for (uint32_t r = 0; r < header.rowCount; r++) {
-        fread(rowBuffer, header.rowSize, 1, file);
+        // fread(rowBuffer, header.rowSize, 1, file);
+        file.read((uint8_t*)rowBuffer, header.rowSize);
 
         printf("SATIR #%d\n", r);
         uint8_t isDeleted = rowBuffer[0];
@@ -205,7 +209,8 @@ void debugSelectStar(const char *tableName) {
     }
 
     free(rowBuffer);
-    fclose(file);
+    // fclose(file);
+    file.close();
     printf("==================================================\n");
 }
 
@@ -485,10 +490,12 @@ uint8_t selectWhere(const char *tableName, const char *whereColumnsName[], void 
     }
 
     DBHeader header;
-    fread(&header, sizeof(DBHeader), 1, file);
+    // fread(&header, sizeof(DBHeader), 1, file);
+    file.read((uint8_t*)&header, sizeof(DBHeader));
 
     ColumnConfig configs[MAX_COLUMNS + 1];
-    fread(configs, sizeof(ColumnConfig), header.columnCount, file);
+    // fread(configs, sizeof(ColumnConfig), header.columnCount, file);
+    file.read((uint8_t*)configs, sizeof(ColumnConfig) * header.columnCount);
 
     int whereCount = 0;
     while (whereColumnsName[whereCount] != NULL) whereCount++;
@@ -505,8 +512,10 @@ uint8_t selectWhere(const char *tableName, const char *whereColumnsName[], void 
 
     for (uint32_t r = 0; r < header.rowCount; r++) {
         long rowPos = startPosition + (r * header.rowSize);
-        fseek(file, rowPos, SEEK_SET);
-        fread(rowBuffer, header.rowSize, 1, file);
+        // fseek(file, rowPos, SEEK_SET);
+        file.seek(rowPos, SeekSet);
+        // fread(rowBuffer, header.rowSize, 1, file);
+        file.read((uint8_t*)rowBuffer, header.rowSize);
 
         if (rowBuffer[0] == 1) continue; // Silinmişləri keç
 
@@ -603,7 +612,8 @@ uint8_t selectWhere(const char *tableName, const char *whereColumnsName[], void 
         }
     }
 
-    fclose(file);
+    // fclose(file);
+    file.close();
     printf("--------------------------------------------------\n");
     printf("Find rows count: %d\n==================================================\n\n", matchCount);
     return matchCount;
@@ -629,10 +639,12 @@ uint8_t selectWhereIndex(const char *tableName, const char *whereColumnsName[], 
     }
 
     DBHeader header;
-    fread(&header, sizeof(DBHeader), 1, file);
+    // fread(&header, sizeof(DBHeader), 1, file);
+    file.read((uint8_t*)&header, sizeof(DBHeader));
 
     ColumnConfig configs[MAX_COLUMNS + 1];
-    fread(configs, sizeof(ColumnConfig), header.columnCount, file);
+    // fread(configs, sizeof(ColumnConfig), header.columnCount, file);
+    file.read((uint8_t*)configs, sizeof(ColumnConfig) * header.columnCount);
 
     int whereCount = 0;
     while (whereColumnsName[whereCount] != NULL) whereCount++;
@@ -643,8 +655,10 @@ uint8_t selectWhereIndex(const char *tableName, const char *whereColumnsName[], 
 
     for (uint32_t r = 0; r < header.rowCount; r++) {
         long rowPos = startPosition + (r * header.rowSize);
-        fseek(file, rowPos, SEEK_SET);
-        fread(rowBuffer, header.rowSize, 1, file);
+        // fseek(file, rowPos, SEEK_SET);
+        file.seek(rowPos, SeekSet);
+        // fread(rowBuffer, header.rowSize, 1, file);
+        file.read((uint8_t*)rowBuffer, header.rowSize);
 
         if (rowBuffer[0] == 1) continue; // Soft-delete olanları keç
 
@@ -712,7 +726,8 @@ uint8_t selectWhereIndex(const char *tableName, const char *whereColumnsName[], 
         }
     }
 
-    fclose(file);
+    // fclose(file);
+    file.close();
     return matchCount;
 }
 
@@ -738,10 +753,12 @@ int32_t selectWhereStep(const char *tableName,
     }
 
     DBHeader header;
-    fread(&header, sizeof(DBHeader), 1, file);
+    // fread(&header, sizeof(DBHeader), 1, file);
+    file.read((uint8_t*)&header, sizeof(DBHeader));
 
     ColumnConfig configs[MAX_COLUMNS + 1];
-    fread(configs, sizeof(ColumnConfig), header.columnCount, file);
+    // fread(configs, sizeof(ColumnConfig), header.columnCount, file);
+    file.read((uint8_t*)configs, sizeof(ColumnConfig) * header.columnCount);
 
     // Ötürülən şərtlərin sayını hesablayaq
     int whereCount = 0;
@@ -759,7 +776,8 @@ int32_t selectWhereStep(const char *tableName,
     uint8_t rowBuffer[512];
     if (header.rowSize > 512) {
         printf("XETA: Satir olcusu 512 baytdan boyukdur!\n");
-        fclose(file);
+        // fclose(file);
+        file.close();
         return -1;
     }
 
@@ -769,8 +787,10 @@ int32_t selectWhereStep(const char *tableName,
     // Şərti ödəyən ilk sətri tapmaq üçün startRowNo indeksindən başlayaraq dövr qururuq
     for (uint32_t r = startRowNo; r < header.rowCount; r++) {
         long rowPos = startPosition + (r * header.rowSize);
-        fseek(file, rowPos, SEEK_SET);
-        fread(rowBuffer, header.rowSize, 1, file);
+        // fseek(file, rowPos, SEEK_SET);
+        file.seek(rowPos, SeekSet);
+        // fread(rowBuffer, header.rowSize, 1, file);
+        file.read((uint8_t*)rowBuffer, header.rowSize);
 
         if (rowBuffer[0] == 1) continue; // Silinmiş (soft-deleted) sətirdirsə keçirik
 
@@ -828,7 +848,8 @@ int32_t selectWhereStep(const char *tableName,
         }
     }
 
-    fclose(file);
+    // fclose(file);
+    file.close();
     return foundRowIndex; // Tapılmadısa -1, tapıldısa sətir nömrəsini (0, 1, 2...) qaytarır
 }
 
