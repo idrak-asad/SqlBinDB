@@ -236,6 +236,9 @@ void executeSQL(const char *sql)
 // ----------------------------------------------------------------
     // AUTO-INJECT CHILD TABLES AS INT COLUMNS PARSER
     // ----------------------------------------------------------------
+// ----------------------------------------------------------------
+    // ENHANCED CREATE TABLE PARSER (MAX_ROWS və CHILD_TABLES Dəstəkli)
+    // ----------------------------------------------------------------
     if (matchKeyword(&cursor, "CREATE TABLE")) {
         char tableName[64] = {0};
 
@@ -245,7 +248,7 @@ void executeSQL(const char *sql)
             // 1. İSTİFADƏÇİNİN YAZDIĞI ƏSAS SÜTUNLARI OXU
             if (extractParentheses(&cursor, schemaBuf, sizeof(schemaBuf))) {
                 
-                #define MAX_PARSED_COLS 20 // Child-lar da əlavə olunacağı üçün limiti artırdıq
+                #define MAX_PARSED_COLS 20
                 char colNamesBuf[MAX_PARSED_COLS][32] = {0};
                 char colTypesBuf[MAX_PARSED_COLS][32] = {0};
                 char colConstraintsBuf[MAX_PARSED_COLS][64] = {0};
@@ -272,7 +275,7 @@ void executeSQL(const char *sql)
                     // Ölçü mötərizəsi varsa (Məs: CHAR2(10)) birləşdir
                     schemaCursor = skipSpaces(schemaCursor);
                     if (*schemaCursor == '(') {
-                        strcat(colTypesBuf[colCount], "（"); // mötərizə aç
+                        strcat(colTypesBuf[colCount], "(");
                         schemaCursor++;
                         while (*schemaCursor && isdigit((unsigned char)*schemaCursor)) {
                             char digitStr[2] = {*schemaCursor, '\0'};
@@ -286,7 +289,7 @@ void executeSQL(const char *sql)
                     }
                     columnTypes[colCount] = colTypesBuf[colCount];
 
-                    // Constraint-ləri oxu
+                    // Constraint-ləri növbəti vergülə qədər oxu
                     schemaCursor = skipSpaces(schemaCursor);
                     int cIdx = 0;
                     while (*schemaCursor && *schemaCursor != ',') {
@@ -303,7 +306,32 @@ void executeSQL(const char *sql)
                     colCount++;
                 }
 
-                // 2. CHILD_TABLES BLOKUNU OXU VƏ SÜTUN KİMİ ENJEKTE ET
+                // 🌟 2. MAX_ROWS PARAMETRİNİN PARÇALANMASI (YENİ ƏLAVƏ)
+                uint32_t maxRowsValue = 1000; // Default dəyər (əgər sorğuda yazılmazsa)
+                
+                cursor = skipSpaces(cursor);
+                if (matchKeyword(&cursor, "MAX_ROWS")) {
+                    cursor = skipSpaces(cursor);
+                    
+                    // Əgər MAX_ROWS=1000 formatındadırsa, '=' işarəsini təhlükəsiz keçirik
+                    if (*cursor == '=') {
+                        cursor++; 
+                        cursor = skipSpaces(cursor);
+                    }
+                    
+                    // Rəqəmi oxuyuruq
+                    char rowBuf[16] = {0};
+                    int rIdx = 0;
+                    while (*cursor && isdigit((unsigned char)*cursor) && rIdx < 15) {
+                        rowBuf[rIdx++] = *cursor++;
+                    }
+                    
+                    if (rIdx > 0) {
+                        maxRowsValue = (uint32_t)atoi(rowBuf);
+                    }
+                }
+
+                // 🌟 3. CHILD_TABLES BLOKUNU OXU VƏ SÜTUN KİMİ ENJEKTE ET
                 cursor = skipSpaces(cursor);
                 int childCount = 0;
 
@@ -316,19 +344,18 @@ void executeSQL(const char *sql)
                             childCursor = skipSpaces(childCursor);
                             if (*childCursor == '\0') break;
 
-                            // Local müvəqqəti buferə child adını oxuyuruq
                             char tempChildName[32] = {0};
                             if (extractWord(&childCursor, tempChildName, 32)) {
                                 
-                                // 🌟 AVTOMATİK SÜTUN ENJEKSİYASI (Auto-injection)
+                                // Child adını sütun kimi massivə daxil edirik
                                 strncpy(colNamesBuf[colCount], tempChildName, 31);
                                 columnNames[colCount] = colNamesBuf[colCount];
 
-                                // Tipi məcburi olaraq "INT" təyin edirik
+                                // Tip məcburi olaraq "INT" təyin edilir
                                 strcpy(colTypesBuf[colCount], "INT");
                                 columnTypes[colCount] = colTypesBuf[colCount];
 
-                                // Child sütunları üçün default constraint (Boş buraxılır və ya istəsəniz "NOT NULL" edə bilərsiniz)
+                                // Child sütunları üçün constraint boş buraxılır
                                 strcpy(colConstraintsBuf[colCount], ""); 
                                 constraints[colCount] = colConstraintsBuf[colCount];
 
@@ -342,18 +369,19 @@ void executeSQL(const char *sql)
                     }
                 }
 
-                // Massivlərin sonunu NULL ilə bağlayırıq (Real sütunlar + Child sütunları bütöv şəkildə)
+                // Massivlərin sonunu möhürləyirik
                 columnNames[colCount] = NULL;
                 columnTypes[colCount] = NULL;
                 constraints[colCount] = NULL;
 
-                // 3. REAL FUNKSİYANIN ÇAĞIRILMASI
-                // Artıq sizin standart createTable funksiyanıza child-lar da daxil olmaqla vahid massiv gedir.
-                bool success = createTable(tableName, columnNames, columnTypes, constraints, false, 1000);
+                // 🌟 4. MÜHƏRRİKƏ ÖTÜRÜLMƏ
+                // Artıq maxRowsValue parametri də düzgün şəkildə funksiyanıza gedir.
+                bool success = createTable(tableName, columnNames, columnTypes, constraints, false, maxRowsValue);
                 
                 if (success) {
-                    printf("\n[SİSTEM UĞURLA YIĞILDI]: '%s' cədvəli child sütunları ilə birlikdə yaradıldı.\n", tableName);
-                    printf(" -> Ümumi ötürülən sütun sayı (Orijinal + Child): %d\n", colCount);
+                    printf("\n[SİSTEM TAM ÖDƏDİ]: '%s' cədvəli yaradıldı.\n", tableName);
+                    printf(" -> Təyin olunan MAX_ROWS limit: %d\n", maxRowsValue);
+                    printf(" -> Ümumi sütun sayı (Orijinal + Auto-injected Child): %d\n", colCount);
                     for (int i = 0; i < colCount; i++) {
                         printf("   -> [%d] Sütun: Ad='%s', Tip='%s', Constraint='%s'\n", 
                                i + 1, columnNames[i], columnTypes[i], constraints[i]);

@@ -1,0 +1,20 @@
+CREATE DATABASE az_irrigation PASSWORD admin123;
+CREATE DATABASE az_irrigation PASSWORD admin123 RECREATE;
+CREATE DATABASE az_irrigation RECREATE PASSWORD admin123;
+
+CONNECT DATABASE agro_db;
+CONNECT DATABASE agro_db PASSWORD admin123;
+USE agro_db PASSWORD admin123;
+
+
+executeSQL("CREATE TABLE sensors RECREATE (id INT, temp FLOAT);");
+
+
+CREATE TABLE table_name [RECREATE] (
+    sütun_adı_1 data_tipi_1 [məhdudiyyət_1],
+    sütun_adı_2 data_tipi_2 [məhdudiyyət_2],
+    ...
+) [MAX_ROWS sətir_sayı];
+
+
+CREATE TABLE sensors (sensors_name CHAR2(10) NOT NULL, sub_device INT NOT NULL, sub_rank UINT8 NOT NULL) MAX_ROWS=1000 CHILD_TABLES (sensors_valves);
