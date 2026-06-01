@@ -138,81 +138,87 @@ void selectData(const char *tableName) {
 // ====================================================================
 // 6. DEBUG SELECT STAR (Bütün Binar Strukturu Görmək Üçün)
 // ====================================================================
-void debugSelectStar(const char *tableName) {
-    if (strlen(current_db_path) == 0) {
-        printf("XETA: Evvelce bir verilener bazasina qoshulun!\n");
-        return;
-    }
+// void debugSelectStar(const char *tableName) {
+//     // if (strlen(current_db_path) == 0) {
+//     //     printf("XETA: Evvelce bir verilener bazasina qoshulun!\n");
+//     //     return;
+//     // }
 
-    char tableFilePath[256];
-    snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
+//     // char tableFilePath[256];
+//     // snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
 
-    FILE *file = fopen(tableFilePath, "rb");
-    if (!file) {
-        printf("Error: '%s' cadvali tapilmadi!\n", tableName);
-        return;
-    }
+//     // FILE *file = fopen(tableFilePath, "rb");
+//     // if (!file) {
+//     //     printf("Error: '%s' cadvali tapilmadi!\n", tableName);
+//     //     return;
+//     // }
+//     File file = openTable(tableName, "r");
 
-    DBHeader header;
-    fread(&header, sizeof(DBHeader), 1, file);
+//     if (!file)
+//     {
+//         return 0; 
+//     }
 
-    ColumnConfig configs[MAX_COLUMNS + 1];
-    // fread(configs, sizeof(ColumnConfig), header.columnCount, file);
-    file.read((uint8_t*)configs, sizeof(ColumnConfig) * header.columnCount);
+//     DBHeader header;
+//     fread(&header, sizeof(DBHeader), 1, file);
 
-    printf("\n==================================================\n");
-    printf("     RAW BINARY DUMP (CADVEL: %s)\n", tableName);
-    printf("==================================================\n");
-    printf("Hazirki Real Satir Sayi (RowCount): %u\n", header.rowCount);
-    printf("Maksimum Satir Limiti (MaxRows)  : %u\n", header.maxRows);
-    printf("Novbeti Yazilacaq İndex (NextRow) : %u\n", header.nextRowIndex);
-    printf("Bir Satrin Olcusu (RowSize)       : %u byte\n", header.rowSize);
-    printf("--------------------------------------------------\n\n");
+//     ColumnConfig configs[MAX_COLUMNS + 1];
+//     // fread(configs, sizeof(ColumnConfig), header.columnCount, file);
+//     file.read((uint8_t*)configs, sizeof(ColumnConfig) * header.columnCount);
 
-    uint8_t *rowBuffer = (uint8_t *)malloc(header.rowSize);
+//     printf("\n==================================================\n");
+//     printf("     RAW BINARY DUMP (CADVEL: %s)\n", tableName);
+//     printf("==================================================\n");
+//     printf("Hazirki Real Satir Sayi (RowCount): %u\n", header.rowCount);
+//     printf("Maksimum Satir Limiti (MaxRows)  : %u\n", header.maxRows);
+//     printf("Novbeti Yazilacaq İndex (NextRow) : %u\n", header.nextRowIndex);
+//     printf("Bir Satrin Olcusu (RowSize)       : %u byte\n", header.rowSize);
+//     printf("--------------------------------------------------\n\n");
 
-    for (uint32_t r = 0; r < header.rowCount; r++) {
-        // fread(rowBuffer, header.rowSize, 1, file);
-        file.read((uint8_t*)rowBuffer, header.rowSize);
+//     uint8_t *rowBuffer = (uint8_t *)malloc(header.rowSize);
 
-        printf("SATIR #%d\n", r);
-        uint8_t isDeleted = rowBuffer[0];
-        printf("[Bayt 00] -> is_deleted: %u (%s)\n", isDeleted, (isDeleted == 1) ? "SILINIB" : "AKTIV");
+//     for (uint32_t r = 0; r < header.rowCount; r++) {
+//         // fread(rowBuffer, header.rowSize, 1, file);
+//         file.read((uint8_t*)rowBuffer, header.rowSize);
 
-        int offset = 1;
-        for (int i = 1; i < header.columnCount; i++) {
-            printf("[Bayt %02d] -> Sutun: %-12s | Deyer: ", offset, configs[i].columnName);
+//         printf("SATIR #%d\n", r);
+//         uint8_t isDeleted = rowBuffer[0];
+//         printf("[Bayt 00] -> is_deleted: %u (%s)\n", isDeleted, (isDeleted == 1) ? "SILINIB" : "AKTIV");
 
-            if (configs[i].typeID == TYPE_UINT32 || configs[i].typeID == TYPE_INT ) {
-                uint32_t val;
-                memcpy(&val, rowBuffer + offset, 4);
-                printf("%u\n", val);
-                offset += 4;
-            }
-            else if (configs[i].typeID == TYPE_UINT8 ) {
-                uint8_t val;
-                memcpy(&val, rowBuffer + offset, 1);
-                printf("%u\n", val);
-                offset += 1;
-            }
-            else if (configs[i].typeID == TYPE_CHAR2 ) {
-                int len = configs[i].dataSize;
-                char *strStr = (char *)malloc(len + 1);
-                memcpy(strStr, rowBuffer + offset, len);
-                strStr[len] = '\0';
-                printf("\"%s\"\n", strStr);
-                offset += len;
-                free(strStr);
-            }
-        }
-        printf("\n");
-    }
+//         int offset = 1;
+//         for (int i = 1; i < header.columnCount; i++) {
+//             printf("[Bayt %02d] -> Sutun: %-12s | Deyer: ", offset, configs[i].columnName);
 
-    free(rowBuffer);
-    // fclose(file);
-    file.close();
-    printf("==================================================\n");
-}
+//             if (configs[i].typeID == TYPE_UINT32 || configs[i].typeID == TYPE_INT ) {
+//                 uint32_t val;
+//                 memcpy(&val, rowBuffer + offset, 4);
+//                 printf("%u\n", val);
+//                 offset += 4;
+//             }
+//             else if (configs[i].typeID == TYPE_UINT8 ) {
+//                 uint8_t val;
+//                 memcpy(&val, rowBuffer + offset, 1);
+//                 printf("%u\n", val);
+//                 offset += 1;
+//             }
+//             else if (configs[i].typeID == TYPE_CHAR2 ) {
+//                 int len = configs[i].dataSize;
+//                 char *strStr = (char *)malloc(len + 1);
+//                 memcpy(strStr, rowBuffer + offset, len);
+//                 strStr[len] = '\0';
+//                 printf("\"%s\"\n", strStr);
+//                 offset += len;
+//                 free(strStr);
+//             }
+//         }
+//         printf("\n");
+//     }
+
+//     free(rowBuffer);
+//     // fclose(file);
+//     file.close();
+//     printf("==================================================\n");
+// }
 
 
 
