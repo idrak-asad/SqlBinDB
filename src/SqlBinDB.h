@@ -65,8 +65,10 @@ extern "C" {
 // extern char current_db_path[256];
 
 
+#include "sql_pars_controls.h"
 #include "add_controls.h"
 #include "select_controls.h"
+
 // #include "db_platform.h" // Platforma abstraksiya faylımız
 #include "db_controls.h"
 #include "table_controls.h"
