@@ -742,22 +742,22 @@ bool executeSQL(const char *sql)
             else if (hasJoin && !hasWhere)
             {
                 // Ssenari 3: SELECT * FROM users JOIN orders ON id = user_id
-                printf("[PROSES]: Relyasiyalı select (JOIN) icra olunur.\n");
+                printf("[PROSES]: Relyasiyalı select (JOIN) icra olunur. Continue...\n");
 
-                char parentCol[64] = {0};
-                char childCol[64] = {0};
-                parseJoinCondition(joinCond, parentCol, childCol);
+                // char parentCol[64] = {0};
+                // char childCol[64] = {0};
+                // parseJoinCondition(joinCond, parentCol, childCol);
 
-                selectJoinData(table1, table2, parentCol, childCol);
+                // selectJoinData(table1, table2, parentCol, childCol);
             }
             else if (hasJoin && hasWhere)
             {
                 // Ssenari 4: SELECT * FROM users JOIN orders ON id = user_id WHERE status = 'active'
-                printf("[PROSES]: Həm JOIN, həm WHERE olan select icra olunur.\n");
+                printf("[PROSES]: Həm JOIN, həm WHERE olan select icra olunur. Continue...\n");
 
-                char parentCol[64] = {0};
-                char childCol[64] = {0};
-                parseJoinCondition(joinCond, parentCol, childCol);
+                // char parentCol[64] = {0};
+                // char childCol[64] = {0};
+                // parseJoinCondition(joinCond, parentCol, childCol);
 
                 // Həm join, həm şərt funksiyası
                 // selectJoinWhereData(table1, table2, parentCol, childCol, ... where massivləri ...);

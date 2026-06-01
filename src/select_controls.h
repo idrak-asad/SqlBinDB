@@ -4,7 +4,6 @@
 
 // #include "add_controls.h"
 
-
 // ====================================================================
 // 5. SELECT DATA (Məlumatları Oxumaq)
 // ====================================================================
@@ -12,36 +11,36 @@
 void selectData(const char *tableName);
 
 // 2. Şərtli SELECT FROM table WHERE cond
-uint8_t selectWhere(const char *tableName, 
-                    const char *whereColumnsName[], 
-                    void *whereColumnsData[], 
+uint8_t selectWhere(const char *tableName,
+                    const char *whereColumnsName[],
+                    void *whereColumnsData[],
                     // uint8_t whereDataTypes[], // Sütun tipləri (Mütləqdir!)
                     const char *whereOperators[]);
 
 // 3. Sadə JOIN: SELECT * FROM t1 JOIN t2 ON t1.id = t2.t1_id
-void selectJoinData(const char *parentTable, const char *childTable, 
+void selectJoinData(const char *parentTable, const char *childTable,
                     const char *parentCol, const char *childCol);
 
 // 4. HƏM JOIN, HƏM WHERE: Kombinasiya edilmiş funksiya
-void selectJoinWhereData(const char *parentTable, const char *childTable, 
+void selectJoinWhereData(const char *parentTable, const char *childTable,
                          const char *parentCol, const char *childCol,
-                         const char *whereColumnsName[], void *whereColumnsData[], 
+                         const char *whereColumnsName[], void *whereColumnsData[],
                          const char *whereOperators[], int conditionCount);
 
-void selectJoinWhereData(const char *parentTable, const char *childTable, 
+void selectJoinWhereData(const char *parentTable, const char *childTable,
                          const char *parentCol, const char *childCol,
-                         const char *whereColumnsName[], void *whereColumnsData[], 
-                         const char *whereOperators[], int conditionCount){
-                            
-                         }
+                         const char *whereColumnsName[], void *whereColumnsData[],
+                         const char *whereOperators[], int conditionCount)
+{
+}
 void parseJoinCondition(char *joinCond[], char *parentCol[], char *childCol[]);
 
-void parseJoinCondition(char *joinCond[], char *parentCol[], char *childCol[]){
-
+void parseJoinCondition(char *joinCond[], char *parentCol[], char *childCol[])
+{
 }
 
-
-void selectData(const char *tableName) {
+void selectData(const char *tableName)
+{
     // if (strlen(current_db_path) == 0) return;
 
     // char tableFilePath[256];
@@ -54,7 +53,7 @@ void selectData(const char *tableName) {
 
     if (!file)
     {
-        return 0; 
+        return;
     }
 
     DBHeader header;
@@ -62,10 +61,11 @@ void selectData(const char *tableName) {
 
     ColumnConfig configs[MAX_COLUMNS + 1];
     // fread(configs, sizeof(ColumnConfig), header.columnCount, file);
-    file.read((uint8_t*)configs, sizeof(ColumnConfig) * header.columnCount);
+    file.read((uint8_t *)configs, sizeof(ColumnConfig) * header.columnCount);
 
     printf("\n=== TABLE DATA: %s ===\n", tableName);
-    for (int i = 1; i < header.columnCount; i++) {
+    for (int i = 1; i < header.columnCount; i++)
+    {
         printf("%-15s\t", configs[i].columnName);
     }
     printf("\n----------------------------------------------------------------------------------\n");
@@ -73,63 +73,98 @@ void selectData(const char *tableName) {
     uint8_t rowBuffer[512];
     long startOffset = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
 
-    for (uint32_t r = 0; r < header.rowCount; r++) {
+    for (uint32_t r = 0; r < header.rowCount; r++)
+    {
         fseek(file, startOffset + (r * header.rowSize), SEEK_SET);
         // fread(rowBuffer, header.rowSize, 1, file);
-        file.read((uint8_t*)rowBuffer, header.rowSize);
+        file.read((uint8_t *)rowBuffer, header.rowSize);
 
-        if (rowBuffer[0] == 1) continue; // Silinmiş sətirləri keçirik
+        if (rowBuffer[0] == 1)
+            continue; // Silinmiş sətirləri keçirik
 
         int currentOffset = 1;
-        for (int i = 1; i < header.columnCount; i++) {
-            if (configs[i].typeID == TYPE_INT || configs[i].typeID == TYPE_UINT32) {
+        for (int i = 1; i < header.columnCount; i++)
+        {
+            if (configs[i].typeID == TYPE_INT || configs[i].typeID == TYPE_UINT32)
+            {
                 uint32_t val = *(uint32_t *)(rowBuffer + currentOffset);
                 printf("%-15d\t", val);
                 currentOffset += 4;
-            } else if (configs[i].typeID == TYPE_TIMESTAMP) {
+            }
+            else if (configs[i].typeID == TYPE_TIMESTAMP)
+            {
                 uint32_t ts = *(uint32_t *)(rowBuffer + currentOffset);
                 printf("%-15u (TS)\t", ts);
                 currentOffset += 4;
-            } else if (configs[i].typeID == TYPE_UINT8) {
+            }
+            else if (configs[i].typeID == TYPE_UINT8)
+            {
                 uint8_t val = *(uint8_t *)(rowBuffer + currentOffset);
                 printf("%-15d\t", val);
                 currentOffset += 1;
-            } else if (configs[i].typeID == TYPE_FLOAT) {
+            }
+            else if (configs[i].typeID == TYPE_FLOAT)
+            {
                 float val = *(float *)(rowBuffer + currentOffset);
                 printf("%-15.2f\t", val);
                 currentOffset += 4;
-            } else if (configs[i].typeID == TYPE_FIXED_POINT) {
+            }
+            else if (configs[i].typeID == TYPE_FIXED_POINT)
+            {
                 // SƏNİN METODUN: Diskdəki 2 baytlıq tam ədədi userə çıxaranda 100-ə bölüb real float edirik!
                 int16_t fixedVal = *(int16_t *)(rowBuffer + currentOffset);
                 float realFloat = (float)fixedVal / 100.0f;
                 printf("%-15.2f\t", realFloat);
                 currentOffset += 2;
-            } else if (configs[i].typeID == TYPE_DATETIME) {
+            }
+            else if (configs[i].typeID == TYPE_DATETIME)
+            {
                 BinaryDateTime dt;
                 memcpy(&dt, rowBuffer + currentOffset, sizeof(BinaryDateTime));
                 printf("%04d-%02d-%02d %02d:%02d:%02d\t", dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second);
                 currentOffset += sizeof(BinaryDateTime);
-            } else if (configs[i].typeID == TYPE_CHAR2) {
+            }
+            else if (configs[i].typeID == TYPE_CHAR2)
+            {
                 // Stack allocation sayəsində yaddaş çökməsi/leak problemi həll olundu
                 char tempStr[MAX_CHAR + 1] = {0};
                 memcpy(tempStr, rowBuffer + currentOffset, configs[i].dataSize);
                 printf("%-15s\t", tempStr);
                 currentOffset += configs[i].dataSize;
-            } else if (configs[i].typeID == TYPE_VARCHAR2) {
+            }
+            else if (configs[i].typeID == TYPE_VARCHAR2)
+            {
                 // VARCHAR2 OXUNMASI: Pointer offsetinə gedib ordan dynamic mətni oxuyuruq
                 uint32_t vOffset = *(uint32_t *)(rowBuffer + currentOffset);
                 char varcharPath[256];
                 snprintf(varcharPath, sizeof(varcharPath), "%s/tables/%s.varchardb", current_db_path, tableName);
-                
-                FILE *vFile = fopen(varcharPath, "rb");
+
+                // FILE *vFile = fopen(varcharPath, "rb");
+                // char vStr[256] = {0};
+                // if (vFile) {
+                //     fseek(vFile, vOffset, SEEK_SET);
+                //     uint16_t strLen;
+                //     fread(&strLen, sizeof(uint16_t), 1, vFile);
+                //     if (strLen > 255) strLen = 255;
+                //     fread(vStr, 1, strLen, vFile);
+                //     fclose(vFile);
+                // }
+                File vFile = LittleFS.open(varcharPath, "r");
+                // File vFile = openTable(tableName, "r");
                 char vStr[256] = {0};
-                if (vFile) {
-                    fseek(vFile, vOffset, SEEK_SET);
+
+                if (vFile)
+                {
+                    vFile.seek(vOffset, SeekSet); // Göstərilən ofsetə keçid
+
                     uint16_t strLen;
-                    fread(&strLen, sizeof(uint16_t), 1, vFile);
-                    if (strLen > 255) strLen = 255;
-                    fread(vStr, 1, strLen, vFile);
-                    fclose(vFile);
+                    vFile.read((uint8_t *)&strLen, sizeof(uint16_t)); // 2 baytlıq uzunluğu oxu
+
+                    if (strLen > 255)
+                        strLen = 255; // Daşmanın qarşısını al
+
+                    vFile.read((uint8_t *)vStr, strLen); // Mətni buferə köçür
+                    vFile.close();                       // Faylı bağla
                 }
                 printf("%-15s\t", vStr);
                 currentOffset += sizeof(uint32_t);
@@ -140,7 +175,6 @@ void selectData(const char *tableName) {
     // fclose(file);
     file.close();
 }
-
 
 // ====================================================================
 // 6. DEBUG SELECT STAR (Bütün Binar Strukturu Görmək Üçün)
@@ -163,7 +197,7 @@ void selectData(const char *tableName) {
 
 //     if (!file)
 //     {
-//         return 0; 
+//         return 0;
 //     }
 
 //     DBHeader header;
@@ -227,9 +261,6 @@ void selectData(const char *tableName) {
 //     printf("==================================================\n");
 // }
 
-
-
-
 // ====================================================================
 // 9. MULTI-WHERE SELECT DATA
 // ====================================================================
@@ -267,7 +298,7 @@ void selectData(const char *tableName) {
 //     printf("\n--------------------------------------------------\n");
 
 //     // ESP32 optimizasiyası: Dinamik malloc yerinə stack-də sabit ölçülü bufer (Maks 256 byte sətir üçün)
-//     uint8_t rowBuffer[256]; 
+//     uint8_t rowBuffer[256];
 //     if (header.rowSize > 256) {
 //         printf("XETA: Satir olcusu desteklenen buferden boyukdur!\n");
 //         fclose(file);
@@ -290,7 +321,7 @@ void selectData(const char *tableName) {
 //         for (int w = 0; w < whereCount; w++) {
 //             int currentOffset = 1;
 //             int foundIdx = -1;
-            
+
 //             for (int i = 1; i < header.columnCount; i++) {
 //                 if (strcmp(configs[i].columnName, whereColumnsName[w]) == 0) {
 //                     foundIdx = i;
@@ -345,11 +376,10 @@ void selectData(const char *tableName) {
 //     return matchCount;
 // }
 
-
-
-
-void selectJoin(const char *parentTable, const char *childTable, const char *parentKey, const char *childKey) {
-    if (strlen(current_db_path) == 0) return;
+void selectJoin(const char *parentTable, const char *childTable, const char *parentKey, const char *childKey)
+{
+    if (strlen(current_db_path) == 0)
+        return;
 
     char pPath[256], cPath[256];
     snprintf(pPath, sizeof(pPath), "%s/tables/%s.db", current_db_path, parentTable);
@@ -357,8 +387,13 @@ void selectJoin(const char *parentTable, const char *childTable, const char *par
 
     FILE *pInst = fopen(pPath, "rb");
     FILE *cInst = fopen(cPath, "rb");
-    if (!pInst || !cInst) { 
-        if(pInst) fclose(pInst); if(cInst) fclose(cInst); return; 
+    if (!pInst || !cInst)
+    {
+        if (pInst)
+            fclose(pInst);
+        if (cInst)
+            fclose(cInst);
+        return;
     }
 
     DBHeader pHead, cHead;
@@ -371,12 +406,16 @@ void selectJoin(const char *parentTable, const char *childTable, const char *par
 
     // Açarların ofsetlərini təyin edirik
     int pKeyOffset = 1, cKeyOffset = 1; // 0 is_deleted-dir
-    for (int i = 1; i < pHead.columnCount; i++) {
-        if (strcmp(pConfigs[i].columnName, parentKey) == 0) break;
+    for (int i = 1; i < pHead.columnCount; i++)
+    {
+        if (strcmp(pConfigs[i].columnName, parentKey) == 0)
+            break;
         pKeyOffset += pConfigs[i].dataSize;
     }
-    for (int i = 1; i < cHead.columnCount; i++) {
-        if (strcmp(cConfigs[i].columnName, childKey) == 0) break;
+    for (int i = 1; i < cHead.columnCount; i++)
+    {
+        if (strcmp(cConfigs[i].columnName, childKey) == 0)
+            break;
         cKeyOffset += cConfigs[i].dataSize;
     }
 
@@ -389,23 +428,28 @@ void selectJoin(const char *parentTable, const char *childTable, const char *par
     long cStart = sizeof(DBHeader) + (sizeof(ColumnConfig) * cHead.columnCount);
 
     // SƏTİR-SƏTİR GƏZİNTİ (Stream Cross-Match)
-    for (uint32_t pi = 0; pi < pHead.rowCount; pi++) {
+    for (uint32_t pi = 0; pi < pHead.rowCount; pi++)
+    {
         fseek(pInst, pStart + (pi * pHead.rowSize), SEEK_SET);
         fread(pBuffer, pHead.rowSize, 1, pInst);
-        if (pBuffer[0] == 1) continue; // Soft-delete
+        if (pBuffer[0] == 1)
+            continue; // Soft-delete
 
         uint32_t pKeyValue = *(uint32_t *)(pBuffer + pKeyOffset);
 
         // Hər bir parent sətir üçün child sətirlərini tək-tək diskdən oxuyub yoxlayırıq (Yaddaşa tam qənaət)
-        for (uint32_t ci = 0; ci < cHead.rowCount; ci++) {
+        for (uint32_t ci = 0; ci < cHead.rowCount; ci++)
+        {
             fseek(cInst, cStart + (ci * cHead.rowSize), SEEK_SET);
             fread(cBuffer, cHead.rowSize, 1, cInst);
-            if (cBuffer[0] == 1) continue;
+            if (cBuffer[0] == 1)
+                continue;
 
             uint32_t cKeyValue = *(uint32_t *)(cBuffer + cKeyOffset);
 
             // Əgər ID-lər bərabərdirsə (Match tapıldısa), ekrana çıxarırıq
-            if (pKeyValue == cKeyValue) {
+            if (pKeyValue == cKeyValue)
+            {
                 // Sadəlik üçün ilk dataları ekrana çıxarırıq
                 printf("ID: %-11u \t Match Found!\n", pKeyValue);
             }
@@ -417,9 +461,10 @@ void selectJoin(const char *parentTable, const char *childTable, const char *par
     printf("=========================================\n\n");
 }
 
-
-void selectJoinData(const char *parentTable, const char *childTable, const char *parentCol, const char *childCol) {
-    if (strlen(current_db_path) == 0) return;
+void selectJoinData(const char *parentTable, const char *childTable, const char *parentCol, const char *childCol)
+{
+    if (strlen(current_db_path) == 0)
+        return;
 
     char pPath[256], cPath[256];
     snprintf(pPath, sizeof(pPath), "%s/tables/%s.db", current_db_path, parentTable);
@@ -427,9 +472,12 @@ void selectJoinData(const char *parentTable, const char *childTable, const char 
 
     FILE *pInst = fopen(pPath, "rb");
     FILE *cInst = fopen(cPath, "rb");
-    if (!pInst || !cInst) {
-        if (pInst) fclose(pInst);
-        if (cInst) fclose(cInst);
+    if (!pInst || !cInst)
+    {
+        if (pInst)
+            fclose(pInst);
+        if (cInst)
+            fclose(cInst);
         return;
     }
 
@@ -454,22 +502,27 @@ void selectJoinData(const char *parentTable, const char *childTable, const char 
     long pStart = sizeof(DBHeader) + (sizeof(ColumnConfig) * pHead.columnCount);
     long cStart = sizeof(DBHeader) + (sizeof(ColumnConfig) * cHead.columnCount);
 
-    for (uint32_t pi = 0; pi < pHead.rowCount; pi++) {
+    for (uint32_t pi = 0; pi < pHead.rowCount; pi++)
+    {
         fseek(pInst, pStart + (pi * pHead.rowSize), SEEK_SET);
         fread(pBuffer, pHead.rowSize, 1, pInst);
-        if (pBuffer[0] == 1) continue;
+        if (pBuffer[0] == 1)
+            continue;
 
         uint32_t pKeyValue = *(uint32_t *)(pBuffer + pKeyOffset);
 
         // Hər bir parent sətir üçün child sətirlərini tək-tək diskdən yoxlayırıq (RAM-ı qorumaq üçün)
-        for (uint32_t ci = 0; ci < cHead.rowCount; ci++) {
+        for (uint32_t ci = 0; ci < cHead.rowCount; ci++)
+        {
             fseek(cInst, cStart + (ci * cHead.rowSize), SEEK_SET);
             fread(cBuffer, cHead.rowSize, 1, cInst);
-            if (cBuffer[0] == 1) continue;
+            if (cBuffer[0] == 1)
+                continue;
 
             uint32_t cKeyValue = *(uint32_t *)(cBuffer + cKeyOffset);
 
-            if (pKeyValue == cKeyValue) {
+            if (pKeyValue == cKeyValue)
+            {
                 printf("%-20d \t MATCHED (Row %d)\n", pKeyValue, ci);
             }
         }
@@ -479,8 +532,8 @@ void selectJoinData(const char *parentTable, const char *childTable, const char 
     fclose(cInst);
 }
 
-
-uint8_t selectWhere(const char *tableName, const char *whereColumnsName[], void *whereColumnsData[], const char *whereOperators[]){
+uint8_t selectWhere(const char *tableName, const char *whereColumnsName[], void *whereColumnsData[], const char *whereOperators[])
+{
     // if (strlen(current_db_path) == 0) {
     //     printf("XETA: Evvelce bir verilener bazasina qoshulun!\n");
     //     return 0;
@@ -499,54 +552,62 @@ uint8_t selectWhere(const char *tableName, const char *whereColumnsName[], void 
 
     if (!file)
     {
-        return 0; 
+        return 0;
     }
 
     DBHeader header;
     // fread(&header, sizeof(DBHeader), 1, file);
-    file.read((uint8_t*)&header, sizeof(DBHeader));
+    file.read((uint8_t *)&header, sizeof(DBHeader));
 
     ColumnConfig configs[MAX_COLUMNS + 1];
     // fread(configs, sizeof(ColumnConfig), header.columnCount, file);
-    file.read((uint8_t*)configs, sizeof(ColumnConfig) * header.columnCount);
+    file.read((uint8_t *)configs, sizeof(ColumnConfig) * header.columnCount);
 
     int whereCount = 0;
-    while (whereColumnsName[whereCount] != NULL) whereCount++;
+    while (whereColumnsName[whereCount] != NULL)
+        whereCount++;
 
     printf("\n=== FILTERED SELECT: %s (Filtr Sayi: %d) ===\n", tableName, whereCount);
-    for (int i = 1; i < header.columnCount; i++) {
+    for (int i = 1; i < header.columnCount; i++)
+    {
         printf("%-15s\t", configs[i].columnName);
     }
     printf("\n--------------------------------------------------\n");
 
-    uint8_t rowBuffer[512]; 
+    uint8_t rowBuffer[512];
     uint8_t matchCount = 0;
     long startPosition = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
 
-    for (uint32_t r = 0; r < header.rowCount; r++) {
+    for (uint32_t r = 0; r < header.rowCount; r++)
+    {
         long rowPos = startPosition + (r * header.rowSize);
         // fseek(file, rowPos, SEEK_SET);
         file.seek(rowPos, SeekSet);
         // fread(rowBuffer, header.rowSize, 1, file);
-        file.read((uint8_t*)rowBuffer, header.rowSize);
+        file.read((uint8_t *)rowBuffer, header.rowSize);
 
-        if (rowBuffer[0] == 1) continue; // Silinmişləri keç
+        if (rowBuffer[0] == 1)
+            continue; // Silinmişləri keç
 
         bool allConditionsMatch = true;
 
-        for (int w = 0; w < whereCount; w++) {
-            int currentOffset = 1; 
+        for (int w = 0; w < whereCount; w++)
+        {
+            int currentOffset = 1;
             int foundIdx = -1;
-            
-            for (int i = 1; i < header.columnCount; i++) {
-                if (strcmp(configs[i].columnName, whereColumnsName[w]) == 0) {
+
+            for (int i = 1; i < header.columnCount; i++)
+            {
+                if (strcmp(configs[i].columnName, whereColumnsName[w]) == 0)
+                {
                     foundIdx = i;
                     break;
                 }
                 currentOffset += configs[i].dataSize;
             }
 
-            if (foundIdx == -1) {
+            if (foundIdx == -1)
+            {
                 allConditionsMatch = false;
                 break;
             }
@@ -556,7 +617,8 @@ uint8_t selectWhere(const char *tableName, const char *whereColumnsName[], void 
             void *userValPtr = whereColumnsData[w];
 
             // 🌟 İKİ DATANI DA STRING-Ə ÇEVİRİB NORMAL YOXLANILMASI:
-            if (configs[foundIdx].typeID == TYPE_CHAR2) {
+            if (configs[foundIdx].typeID == TYPE_CHAR2)
+            {
                 // Diskdən oxunan sabit ölçülü binar mətni təmiz string edirik
                 char dbTemp[64] = {0};
                 memcpy(dbTemp, dbFieldPtr, configs[foundIdx].dataSize);
@@ -566,57 +628,74 @@ uint8_t selectWhere(const char *tableName, const char *whereColumnsName[], void 
                 std::string userStr((const char *)userValPtr);
 
                 // İndi tam təhlükəsiz bərabərlik yoxlanışı (C++ string müqayisəsi)
-                if (strcmp(whereOperators[w], "=") == 0) {
+                if (strcmp(whereOperators[w], "=") == 0)
+                {
                     conditionPassed = (dbStr == userStr);
                 }
-            } 
-            else if (configs[foundIdx].typeID == TYPE_INT || configs[foundIdx].typeID == TYPE_UINT32) {
+            }
+            else if (configs[foundIdx].typeID == TYPE_INT || configs[foundIdx].typeID == TYPE_UINT32)
+            {
                 uint32_t dbVal = *(uint32_t *)dbFieldPtr;
                 uint32_t userVal = *(uint32_t *)userValPtr;
 
-                if (strcmp(whereOperators[w], "=") == 0) conditionPassed = (dbVal == userVal);
-                else if (strcmp(whereOperators[w], ">") == 0) conditionPassed = (dbVal > userVal);
-                else if (strcmp(whereOperators[w], "<") == 0) conditionPassed = (dbVal < userVal);
-            } 
-            else if (configs[foundIdx].typeID == TYPE_UINT8) {
+                if (strcmp(whereOperators[w], "=") == 0)
+                    conditionPassed = (dbVal == userVal);
+                else if (strcmp(whereOperators[w], ">") == 0)
+                    conditionPassed = (dbVal > userVal);
+                else if (strcmp(whereOperators[w], "<") == 0)
+                    conditionPassed = (dbVal < userVal);
+            }
+            else if (configs[foundIdx].typeID == TYPE_UINT8)
+            {
                 uint8_t dbVal = *(uint8_t *)dbFieldPtr;
                 uint8_t userVal = *(uint8_t *)userValPtr;
 
-                if (strcmp(whereOperators[w], "=") == 0) conditionPassed = (dbVal == userVal);
+                if (strcmp(whereOperators[w], "=") == 0)
+                    conditionPassed = (dbVal == userVal);
             }
 
             // 🌟 Serial.format xətası Serial.printf ilə əvəzləndi:
-            if (r == 0) {
-                Serial.print("[Diaqnostika] Sütun: "); Serial.print(whereColumnsName[w]);
-                Serial.printf(" | Ofset: %d | TipID: %d | Netice: %s\n", 
+            if (r == 0)
+            {
+                Serial.print("[Diaqnostika] Sütun: ");
+                Serial.print(whereColumnsName[w]);
+                Serial.printf(" | Ofset: %d | TipID: %d | Netice: %s\n",
                               currentOffset, configs[foundIdx].typeID, conditionPassed ? "KECDİ" : "XETA");
             }
 
-            if (!conditionPassed) {
+            if (!conditionPassed)
+            {
                 allConditionsMatch = false;
-                break; 
+                break;
             }
         }
 
-        if (allConditionsMatch || whereCount == 0) {
+        if (allConditionsMatch || whereCount == 0)
+        {
             int offset = 1;
-            for (int i = 1; i < header.columnCount; i++) {
-                if (configs[i].typeID == TYPE_INT || configs[i].typeID == TYPE_UINT32) {
+            for (int i = 1; i < header.columnCount; i++)
+            {
+                if (configs[i].typeID == TYPE_INT || configs[i].typeID == TYPE_UINT32)
+                {
                     uint32_t val = *(uint32_t *)(rowBuffer + offset);
                     printf("%-15d\t", val);
                     offset += 4;
                 }
-                else if (configs[i].typeID == TYPE_UINT8) {
+                else if (configs[i].typeID == TYPE_UINT8)
+                {
                     uint8_t val = *(uint8_t *)(rowBuffer + offset);
                     printf("%-15d\t", val);
                     offset += 1;
                 }
-                else if (configs[i].typeID == TYPE_CHAR2) {
+                else if (configs[i].typeID == TYPE_CHAR2)
+                {
                     char tempStr[64] = {0};
                     memcpy(tempStr, rowBuffer + offset, configs[i].dataSize);
                     printf("%-15s\t", tempStr);
                     offset += configs[i].dataSize;
-                } else {
+                }
+                else
+                {
                     offset += configs[i].dataSize;
                 }
             }
@@ -632,10 +711,9 @@ uint8_t selectWhere(const char *tableName, const char *whereColumnsName[], void 
     return matchCount;
 }
 
-
-
 // Tapılan sətirlərin sıra nömrələrini outRowIndices massivinə doldurur və ümumi sayı qaytarır
-uint8_t selectWhereIndex(const char *tableName, const char *whereColumnsName[], void *whereColumnsData[], const char *whereOperators[], uint32_t *outRowIndices, uint8_t maxRowsToReturn) {
+uint8_t selectWhereIndex(const char *tableName, const char *whereColumnsName[], void *whereColumnsData[], const char *whereOperators[], uint32_t *outRowIndices, uint8_t maxRowsToReturn)
+{
     // if (strlen(current_db_path) == 0) return 0;
 
     // char tableFilePath[256];
@@ -648,48 +726,55 @@ uint8_t selectWhereIndex(const char *tableName, const char *whereColumnsName[], 
 
     if (!file)
     {
-        return 0; 
+        return 0;
     }
 
     DBHeader header;
     // fread(&header, sizeof(DBHeader), 1, file);
-    file.read((uint8_t*)&header, sizeof(DBHeader));
+    file.read((uint8_t *)&header, sizeof(DBHeader));
 
     ColumnConfig configs[MAX_COLUMNS + 1];
     // fread(configs, sizeof(ColumnConfig), header.columnCount, file);
-    file.read((uint8_t*)configs, sizeof(ColumnConfig) * header.columnCount);
+    file.read((uint8_t *)configs, sizeof(ColumnConfig) * header.columnCount);
 
     int whereCount = 0;
-    while (whereColumnsName[whereCount] != NULL) whereCount++;
+    while (whereColumnsName[whereCount] != NULL)
+        whereCount++;
 
-    uint8_t rowBuffer[512]; 
+    uint8_t rowBuffer[512];
     uint8_t matchCount = 0;
     long startPosition = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
 
-    for (uint32_t r = 0; r < header.rowCount; r++) {
+    for (uint32_t r = 0; r < header.rowCount; r++)
+    {
         long rowPos = startPosition + (r * header.rowSize);
         // fseek(file, rowPos, SEEK_SET);
         file.seek(rowPos, SeekSet);
         // fread(rowBuffer, header.rowSize, 1, file);
-        file.read((uint8_t*)rowBuffer, header.rowSize);
+        file.read((uint8_t *)rowBuffer, header.rowSize);
 
-        if (rowBuffer[0] == 1) continue; // Soft-delete olanları keç
+        if (rowBuffer[0] == 1)
+            continue; // Soft-delete olanları keç
 
         bool allConditionsMatch = true;
 
-        for (int w = 0; w < whereCount; w++) {
-            int currentOffset = 1; 
+        for (int w = 0; w < whereCount; w++)
+        {
+            int currentOffset = 1;
             int foundIdx = -1;
-            
-            for (int i = 1; i < header.columnCount; i++) {
-                if (strcmp(configs[i].columnName, whereColumnsName[w]) == 0) {
+
+            for (int i = 1; i < header.columnCount; i++)
+            {
+                if (strcmp(configs[i].columnName, whereColumnsName[w]) == 0)
+                {
                     foundIdx = i;
                     break;
                 }
                 currentOffset += configs[i].dataSize;
             }
 
-            if (foundIdx == -1) {
+            if (foundIdx == -1)
+            {
                 allConditionsMatch = false;
                 break;
             }
@@ -698,41 +783,56 @@ uint8_t selectWhereIndex(const char *tableName, const char *whereColumnsName[], 
             uint8_t *dbFieldPtr = rowBuffer + currentOffset;
             void *userValPtr = whereColumnsData[w];
 
-            if (userValPtr == NULL) { allConditionsMatch = false; break; }
+            if (userValPtr == NULL)
+            {
+                allConditionsMatch = false;
+                break;
+            }
 
-            if (configs[foundIdx].typeID == TYPE_CHAR2) {
+            if (configs[foundIdx].typeID == TYPE_CHAR2)
+            {
                 char dbTemp[64] = {0};
                 memcpy(dbTemp, dbFieldPtr, configs[foundIdx].dataSize);
                 std::string dbStr(dbTemp);
                 std::string userStr((const char *)userValPtr);
 
-                if (strcmp(whereOperators[w], "=") == 0) conditionPassed = (dbStr == userStr);
-            } 
-            else if (configs[foundIdx].typeID == TYPE_INT || configs[foundIdx].typeID == TYPE_UINT32) {
+                if (strcmp(whereOperators[w], "=") == 0)
+                    conditionPassed = (dbStr == userStr);
+            }
+            else if (configs[foundIdx].typeID == TYPE_INT || configs[foundIdx].typeID == TYPE_UINT32)
+            {
                 uint32_t dbVal = 0, userVal = 0;
                 memcpy(&dbVal, dbFieldPtr, 4);
                 memcpy(&userVal, userValPtr, 4);
 
-                if (strcmp(whereOperators[w], "=") == 0) conditionPassed = (dbVal == userVal);
-                else if (strcmp(whereOperators[w], ">") == 0) conditionPassed = (dbVal > userVal);
-                else if (strcmp(whereOperators[w], "<") == 0) conditionPassed = (dbVal < userVal);
-            } 
-            else if (configs[foundIdx].typeID == TYPE_UINT8) {
+                if (strcmp(whereOperators[w], "=") == 0)
+                    conditionPassed = (dbVal == userVal);
+                else if (strcmp(whereOperators[w], ">") == 0)
+                    conditionPassed = (dbVal > userVal);
+                else if (strcmp(whereOperators[w], "<") == 0)
+                    conditionPassed = (dbVal < userVal);
+            }
+            else if (configs[foundIdx].typeID == TYPE_UINT8)
+            {
                 uint8_t dbVal = *dbFieldPtr;
                 uint8_t userVal = *(uint8_t *)userValPtr;
-                if (strcmp(whereOperators[w], "=") == 0) conditionPassed = (dbVal == userVal);
+                if (strcmp(whereOperators[w], "=") == 0)
+                    conditionPassed = (dbVal == userVal);
             }
 
-            if (!conditionPassed) {
+            if (!conditionPassed)
+            {
                 allConditionsMatch = false;
-                break; 
+                break;
             }
         }
 
         // Əgər sətir bütün şərtlərə uyğundursa
-        if (allConditionsMatch || whereCount == 0) {
+        if (allConditionsMatch || whereCount == 0)
+        {
             // Sıra nömrəsini (r) istifadəçinin massivinə qeyd edirik
-            if (outRowIndices != NULL && matchCount < maxRowsToReturn) {
+            if (outRowIndices != NULL && matchCount < maxRowsToReturn)
+            {
                 outRowIndices[matchCount] = r;
             }
             matchCount++;
@@ -744,12 +844,10 @@ uint8_t selectWhereIndex(const char *tableName, const char *whereColumnsName[], 
     return matchCount;
 }
 
-
-
-int32_t selectWhereStep(const char *tableName, 
+int32_t selectWhereStep(const char *tableName,
                         const char *returnColumnsName[], void *returnColumnsData[],
-                        const char *whereColumnsName[], void *whereColumnsData[], const char *whereOperators[], 
-                        uint32_t startRowNo) 
+                        const char *whereColumnsName[], void *whereColumnsData[], const char *whereOperators[],
+                        uint32_t startRowNo)
 {
     // if (strlen(current_db_path) == 0) {
     //     printf("XETA: Evvelce bir verilener bazasina qoshulun!\n");
@@ -769,32 +867,37 @@ int32_t selectWhereStep(const char *tableName,
 
     if (!file)
     {
-        return 0; 
+        return 0;
     }
 
     DBHeader header;
     // fread(&header, sizeof(DBHeader), 1, file);
-    file.read((uint8_t*)&header, sizeof(DBHeader));
+    file.read((uint8_t *)&header, sizeof(DBHeader));
 
     ColumnConfig configs[MAX_COLUMNS + 1];
     // fread(configs, sizeof(ColumnConfig), header.columnCount, file);
-    file.read((uint8_t*)configs, sizeof(ColumnConfig) * header.columnCount);
+    file.read((uint8_t *)configs, sizeof(ColumnConfig) * header.columnCount);
 
     // Ötürülən şərtlərin sayını hesablayaq
     int whereCount = 0;
-    if (whereColumnsName != NULL) {
-        while (whereColumnsName[whereCount] != NULL) whereCount++;
+    if (whereColumnsName != NULL)
+    {
+        while (whereColumnsName[whereCount] != NULL)
+            whereCount++;
     }
 
     // Geri qaytarılacaq sütunların sayını hesablayaq
     int returnCount = 0;
-    if (returnColumnsName != NULL) {
-        while (returnColumnsName[returnCount] != NULL) returnCount++;
+    if (returnColumnsName != NULL)
+    {
+        while (returnColumnsName[returnCount] != NULL)
+            returnCount++;
     }
 
     // Sətir oxumaq üçün dinamik/stack buferi yaradırıq
     uint8_t rowBuffer[512];
-    if (header.rowSize > 512) {
+    if (header.rowSize > 512)
+    {
         printf("XETA: Satir olcusu 512 baytdan boyukdur!\n");
         // fclose(file);
         file.close();
@@ -805,65 +908,77 @@ int32_t selectWhereStep(const char *tableName,
     int32_t foundRowIndex = -1;
 
     // Şərti ödəyən ilk sətri tapmaq üçün startRowNo indeksindən başlayaraq dövr qururuq
-    for (uint32_t r = startRowNo; r < header.rowCount; r++) {
+    for (uint32_t r = startRowNo; r < header.rowCount; r++)
+    {
         long rowPos = startPosition + (r * header.rowSize);
         // fseek(file, rowPos, SEEK_SET);
         file.seek(rowPos, SeekSet);
         // fread(rowBuffer, header.rowSize, 1, file);
-        file.read((uint8_t*)rowBuffer, header.rowSize);
+        file.read((uint8_t *)rowBuffer, header.rowSize);
 
-        if (rowBuffer[0] == 1) continue; // Silinmiş (soft-deleted) sətirdirsə keçirik
+        if (rowBuffer[0] == 1)
+            continue; // Silinmiş (soft-deleted) sətirdirsə keçirik
 
         // WHERE şərtlərini yoxlayırıq (AND məntiqi ilə)
         bool allConditionsMatch = true;
-        for (int w = 0; w < whereCount; w++) {
+        for (int w = 0; w < whereCount; w++)
+        {
             int currentOffset = 1;
             int foundIdx = -1;
-            
+
             // Sütunun yerini və rowBuffer daxilindəki offsetini tapaq
-            for (int i = 1; i < header.columnCount; i++) {
-                if (strcmp(configs[i].columnName, whereColumnsName[w]) == 0) {
+            for (int i = 1; i < header.columnCount; i++)
+            {
+                if (strcmp(configs[i].columnName, whereColumnsName[w]) == 0)
+                {
                     foundIdx = i;
                     break;
                 }
                 currentOffset += configs[i].dataSize;
             }
 
-            if (foundIdx == -1) {
+            if (foundIdx == -1)
+            {
                 allConditionsMatch = false;
                 break;
             }
 
             // Dəyərləri binar olaraq müqayisə edək
-            if (!compareValues(rowBuffer + currentOffset, whereColumnsData[w], whereOperators[w], configs[foundIdx].typeID)) {
+            if (!compareValues(rowBuffer + currentOffset, whereColumnsData[w], whereOperators[w], configs[foundIdx].typeID))
+            {
                 allConditionsMatch = false;
                 break;
             }
         }
 
         // Əgər bütün WHERE şərtləri ödənirsə (və ya heç şərt yoxdursa)
-        if (allConditionsMatch || whereCount == 0) {
+        if (allConditionsMatch || whereCount == 0)
+        {
             foundRowIndex = r; // Tapılan sətirin indeksini yadda saxla
 
             // İndi isə istifadəçinin tələb etdiyi (returnColumnsName) sütunların datasını onun ötürdüyü buferlərə köçürək
-            for (int rc = 0; rc < returnCount; rc++) {
+            for (int rc = 0; rc < returnCount; rc++)
+            {
                 int currentOffset = 1;
                 int foundIdx = -1;
 
-                for (int i = 1; i < header.columnCount; i++) {
-                    if (strcmp(configs[i].columnName, returnColumnsName[rc]) == 0) {
+                for (int i = 1; i < header.columnCount; i++)
+                {
+                    if (strcmp(configs[i].columnName, returnColumnsName[rc]) == 0)
+                    {
                         foundIdx = i;
                         break;
                     }
                     currentOffset += configs[i].dataSize;
                 }
 
-                if (foundIdx != -1 && returnColumnsData[rc] != NULL) {
+                if (foundIdx != -1 && returnColumnsData[rc] != NULL)
+                {
                     // Sütunun binar datasını istifadəçinin göstərdiyi ünvana kopyalayırıq
                     memcpy(returnColumnsData[rc], rowBuffer + currentOffset, configs[foundIdx].dataSize);
                 }
             }
-            
+
             break; // İlk uyğun sətri tapdığımız üçün dövrü tamamilə dayandırırıq!
         }
     }
