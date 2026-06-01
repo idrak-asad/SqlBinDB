@@ -130,7 +130,7 @@ bool executeSQL(const char *sql)
     {
         printf("[PROSES İCRA OLUNUR]: Mərkəzi registrdən ('master_dbs.db') aktiv olan bütün verilənlər bazalarının siyahısı oxunur.\n");
         selectDb("*");
-        return;
+        return true;
     }
 
     // ----------------------------------------------------------------
@@ -140,7 +140,7 @@ bool executeSQL(const char *sql)
     {
         printf("[PROSES İCRA OLUNUR]: Hazırkı aktiv bazanın 'metadata/tables.db' faylından silinməmiş cədvəllərin adları ekrana çıxarılır.\n");
         selectTables("*");
-        return;
+        return true;
     }
 
     // ----------------------------------------------------------------
@@ -167,7 +167,7 @@ bool executeSQL(const char *sql)
                     if (!extractWord(&cursor, dbPsw, sizeof(dbPsw)))
                     {
                         printf("SİNTAKSİS XƏTASI: PASSWORD açar sözündən sonra parol təyin edilməyib.\n");
-                        return;
+                        return false;
                     }
                     continue;
                 }
@@ -185,12 +185,14 @@ bool executeSQL(const char *sql)
             {
                 printf("[PROSES İCRA OLUNUR]: '%s' bazası (Parol: '%s') yoxlanılır, yoxdursa sistemdə yaradılır (reCreate = false).\n", dbName, dbPsw);
             }
+             return true;
         }
         else
         {
             printf("SİNTAKSİS XƏTASI: Verilənlər bazasının adı tapılmadı.\n");
+             return false;
         }
-        return;
+        // return false;
     }
 
     if (matchKeyword(&cursor, "DROP DATABASE"))
@@ -208,7 +210,7 @@ bool executeSQL(const char *sql)
                     if (!extractWord(&cursor, dbPsw, sizeof(dbPsw)))
                     {
                         printf("SİNTAKSİS XƏTASI: PASSWORD açar sözündən sonra parol təyin edilməyib.\n");
-                        return;
+                        return false;
                     }
                     continue;
                 }
@@ -219,12 +221,14 @@ bool executeSQL(const char *sql)
             dropDb(dbName, dbPsw);
 
             printf("[PROSES İCRA OLUNUR]: '%s' bazası (Parol doğrulaması: '%s'), daxili cədvəlləri və metadatası ilə birlikdə diskdən tamamilə silinir.\n", dbName, dbPsw);
+         return true;
         }
         else
         {
             printf("SİNTAKSİS XƏTASI: Silinəcək verilənlər bazasının adı tapılmadı.\n");
+             return false;
         }
-        return;
+        // return;
     }
 
     // ----------------------------------------------------------------
@@ -233,25 +237,28 @@ bool executeSQL(const char *sql)
     // ----------------------------------------------------------------
     // 5. CREATE TABLE [RECREATE] table_name (col type [constraint], ...) [MAX_ROWS n]
     // ----------------------------------------------------------------
-// ----------------------------------------------------------------
+    // ----------------------------------------------------------------
     // AUTO-INJECT CHILD TABLES AS INT COLUMNS PARSER
     // ----------------------------------------------------------------
-// ----------------------------------------------------------------
+    // ----------------------------------------------------------------
     // ENHANCED CREATE TABLE PARSER (MAX_ROWS və CHILD_TABLES Dəstəkli)
     // ----------------------------------------------------------------
-  // ----------------------------------------------------------------
+    // ----------------------------------------------------------------
     // ADVANCED CREATE TABLE PARSER (CHILD_TABLES & PARENT_TABLES AUTO-INJECTION)
     // ----------------------------------------------------------------
-    if (matchKeyword(&cursor, "CREATE TABLE")) {
+    if (matchKeyword(&cursor, "CREATE TABLE"))
+    {
         char tableName[64] = {0};
 
-        if (extractWord(&cursor, tableName, sizeof(tableName))) {
+        if (extractWord(&cursor, tableName, sizeof(tableName)))
+        {
             char schemaBuf[256] = {0};
-            
+
             // 1. İSTİFADƏÇİNİN YAZDIĞI ƏSAS SÜTUNLARI OXU
-            if (extractParentheses(&cursor, schemaBuf, sizeof(schemaBuf))) {
-                
-                #define MAX_PARSED_COLS 25 // Suffix sütunları artacağı üçün limiti 25 etdik
+            if (extractParentheses(&cursor, schemaBuf, sizeof(schemaBuf)))
+            {
+
+#define MAX_PARSED_COLS 25                                   // Suffix sütunları artacağı üçün limiti 25 etdik
                 char colNamesBuf[MAX_PARSED_COLS][64] = {0}; // Şəkilçilər üçün ölçünü 64 etdik
                 char colTypesBuf[MAX_PARSED_COLS][32] = {0};
                 char colConstraintsBuf[MAX_PARSED_COLS][64] = {0};
@@ -260,32 +267,39 @@ bool executeSQL(const char *sql)
                 char *columnTypes[MAX_PARSED_COLS + 1] = {NULL};
                 char *constraints[MAX_PARSED_COLS + 1] = {NULL};
 
-                const char* schemaCursor = schemaBuf;
+                const char *schemaCursor = schemaBuf;
                 int colCount = 0;
 
                 // Əsas sütunların parçalanması
-                while (*schemaCursor && colCount < MAX_PARSED_COLS) {
+                while (*schemaCursor && colCount < MAX_PARSED_COLS)
+                {
                     schemaCursor = skipSpaces(schemaCursor);
-                    if (*schemaCursor == '\0') break;
+                    if (*schemaCursor == '\0')
+                        break;
 
-                    if (!extractWord(&schemaCursor, colNamesBuf[colCount], 64)) break;
+                    if (!extractWord(&schemaCursor, colNamesBuf[colCount], 64))
+                        break;
                     columnNames[colCount] = colNamesBuf[colCount];
 
                     char baseType[16] = {0};
-                    if (!extractWord(&schemaCursor, baseType, sizeof(baseType))) break;
+                    if (!extractWord(&schemaCursor, baseType, sizeof(baseType)))
+                        break;
                     strcpy(colTypesBuf[colCount], baseType);
 
                     // Ölçü mötərizəsi varsa (Məs: CHAR2(10)) birləşdir
                     schemaCursor = skipSpaces(schemaCursor);
-                    if (*schemaCursor == '(') {
+                    if (*schemaCursor == '(')
+                    {
                         strcat(colTypesBuf[colCount], "(");
                         schemaCursor++;
-                        while (*schemaCursor && isdigit((unsigned char)*schemaCursor)) {
+                        while (*schemaCursor && isdigit((unsigned char)*schemaCursor))
+                        {
                             char digitStr[2] = {*schemaCursor, '\0'};
                             strcat(colTypesBuf[colCount], digitStr);
                             schemaCursor++;
                         }
-                        if (*schemaCursor == ')') {
+                        if (*schemaCursor == ')')
+                        {
                             strcat(colTypesBuf[colCount], ")");
                             schemaCursor++;
                         }
@@ -295,47 +309,63 @@ bool executeSQL(const char *sql)
                     // Constraint-ləri oxu (NOT NULL və s.)
                     schemaCursor = skipSpaces(schemaCursor);
                     int cIdx = 0;
-                    while (*schemaCursor && *schemaCursor != ',') {
-                        if (cIdx < 63) colConstraintsBuf[colCount][cIdx++] = *schemaCursor;
+                    while (*schemaCursor && *schemaCursor != ',')
+                    {
+                        if (cIdx < 63)
+                            colConstraintsBuf[colCount][cIdx++] = *schemaCursor;
                         schemaCursor++;
                     }
                     colConstraintsBuf[colCount][cIdx] = '\0';
-                    while (cIdx > 0 && isspace((unsigned char)colConstraintsBuf[colCount][cIdx - 1])) {
+                    while (cIdx > 0 && isspace((unsigned char)colConstraintsBuf[colCount][cIdx - 1]))
+                    {
                         colConstraintsBuf[colCount][--cIdx] = '\0';
                     }
                     constraints[colCount] = colConstraintsBuf[colCount];
 
-                    if (*schemaCursor == ',') schemaCursor++;
+                    if (*schemaCursor == ',')
+                        schemaCursor++;
                     colCount++;
                 }
 
                 // 2. MAX_ROWS PARAMETRİNİN PARÇALANMASI
-                uint32_t maxRowsValue = 1000; 
+                uint32_t maxRowsValue = 1000;
                 cursor = skipSpaces(cursor);
-                if (matchKeyword(&cursor, "MAX_ROWS")) {
+                if (matchKeyword(&cursor, "MAX_ROWS"))
+                {
                     cursor = skipSpaces(cursor);
-                    if (*cursor == '=') { cursor++; cursor = skipSpaces(cursor); }
+                    if (*cursor == '=')
+                    {
+                        cursor++;
+                        cursor = skipSpaces(cursor);
+                    }
                     char rowBuf[16] = {0};
                     int rIdx = 0;
-                    while (*cursor && isdigit((unsigned char)*cursor) && rIdx < 15) {
+                    while (*cursor && isdigit((unsigned char)*cursor) && rIdx < 15)
+                    {
                         rowBuf[rIdx++] = *cursor++;
                     }
-                    if (rIdx > 0) maxRowsValue = (uint32_t)atoi(rowBuf);
+                    if (rIdx > 0)
+                        maxRowsValue = (uint32_t)atoi(rowBuf);
                 }
 
                 // 🌟 3. CHILD_TABLES BLOKU: [child_adı]_first_id (INT) ENJEKSİYASI
                 cursor = skipSpaces(cursor);
-                if (matchKeyword(&cursor, "CHILD_TABLES")) {
+                if (matchKeyword(&cursor, "CHILD_TABLES"))
+                {
                     char childBuf[256] = {0};
-                    if (extractParentheses(&cursor, childBuf, sizeof(childBuf))) {
-                        const char* childCursor = childBuf;
-                        while (*childCursor && colCount < MAX_PARSED_COLS) {
+                    if (extractParentheses(&cursor, childBuf, sizeof(childBuf)))
+                    {
+                        const char *childCursor = childBuf;
+                        while (*childCursor && colCount < MAX_PARSED_COLS)
+                        {
                             childCursor = skipSpaces(childCursor);
-                            if (*childCursor == '\0') break;
+                            if (*childCursor == '\0')
+                                break;
 
                             char tempChildName[32] = {0};
-                            if (extractWord(&childCursor, tempChildName, sizeof(tempChildName))) {
-                                
+                            if (extractWord(&childCursor, tempChildName, sizeof(tempChildName)))
+                            {
+
                                 // Adın formalaşdırılması: [child_table_name]_first_id
                                 strcpy(colNamesBuf[colCount], tempChildName);
                                 strcat(colNamesBuf[colCount], "_first_id");
@@ -343,31 +373,37 @@ bool executeSQL(const char *sql)
 
                                 strcpy(colTypesBuf[colCount], "INT");
                                 columnTypes[colCount] = colTypesBuf[colCount];
-                                
-                                strcpy(colConstraintsBuf[colCount], ""); 
+
+                                strcpy(colConstraintsBuf[colCount], "");
                                 constraints[colCount] = colConstraintsBuf[colCount];
 
                                 colCount++;
                             }
                             childCursor = skipSpaces(childCursor);
-                            if (*childCursor == ',') childCursor++;
+                            if (*childCursor == ',')
+                                childCursor++;
                         }
                     }
                 }
 
                 // 🌟 4. PARENT_TABLES BLOKU: [parent]_id (INT) və [parent]_next_id (INT) ENJEKSİYASI
                 cursor = skipSpaces(cursor);
-                if (matchKeyword(&cursor, "PARENT_TABLES")) {
+                if (matchKeyword(&cursor, "PARENT_TABLES"))
+                {
                     char parentBuf[256] = {0};
-                    if (extractParentheses(&cursor, parentBuf, sizeof(parentBuf))) {
-                        const char* parentCursor = parentBuf;
-                        while (*parentCursor && colCount < MAX_PARSED_COLS) {
+                    if (extractParentheses(&cursor, parentBuf, sizeof(parentBuf)))
+                    {
+                        const char *parentCursor = parentBuf;
+                        while (*parentCursor && colCount < MAX_PARSED_COLS)
+                        {
                             parentCursor = skipSpaces(parentCursor);
-                            if (*parentCursor == '\0') break;
+                            if (*parentCursor == '\0')
+                                break;
 
                             char tempParentName[32] = {0};
-                            if (extractWord(&parentCursor, tempParentName, sizeof(tempParentName))) {
-                                
+                            if (extractWord(&parentCursor, tempParentName, sizeof(tempParentName)))
+                            {
+
                                 // Sütun A: [parent_table_name]_id
                                 strcpy(colNamesBuf[colCount], tempParentName);
                                 strcat(colNamesBuf[colCount], "_id");
@@ -379,7 +415,8 @@ bool executeSQL(const char *sql)
                                 colCount++;
 
                                 // Sütun B: [parent_table_name]_next_id
-                                if (colCount < MAX_PARSED_COLS) {
+                                if (colCount < MAX_PARSED_COLS)
+                                {
                                     strcpy(colNamesBuf[colCount], tempParentName);
                                     strcat(colNamesBuf[colCount], "_next_id");
                                     columnNames[colCount] = colNamesBuf[colCount];
@@ -391,7 +428,8 @@ bool executeSQL(const char *sql)
                                 }
                             }
                             parentCursor = skipSpaces(parentCursor);
-                            if (*parentCursor == ',') parentCursor++;
+                            if (*parentCursor == ',')
+                                parentCursor++;
                         }
                     }
                 }
@@ -403,22 +441,22 @@ bool executeSQL(const char *sql)
 
                 // 5. MÜHƏRRİKƏ GÖNDƏRİLMƏ
                 bool success = createTable(tableName, columnNames, columnTypes, constraints, false, maxRowsValue);
-                
-                if (success) {
+
+                if (success)
+                {
                     printf("\n[SİSTEM TAM ÖDƏYİR]: '%s' cədvəli relyasiya sütunları ilə uğurla yığıldı.\n", tableName);
                     printf(" -> MAX_ROWS Limiti: %d\n", maxRowsValue);
                     printf(" -> Ümumi Sütun Sayı (Orijinal + İnyeksiya): %d\n", colCount);
-                    for (int i = 0; i < colCount; i++) {
-                        printf("   -> [%d] Sütun: Ad='%s', Tip='%s', Constraint='%s'\n", 
+                    for (int i = 0; i < colCount; i++)
+                    {
+                        printf("   -> [%d] Sütun: Ad='%s', Tip='%s', Constraint='%s'\n",
                                i + 1, columnNames[i], columnTypes[i], constraints[i]);
                     }
                 }
             }
         }
-        return;
+        return true;
     }
-
-  
 
     // void parseDropTable(const char *cursor)
     // {
@@ -464,11 +502,15 @@ bool executeSQL(const char *sql)
             }
 
             // Burada sizin dropTable(tableName, hardDrop); funksiyanız çağırılacaq
+            return true;
         }
-        else
+        else{
             printf("SİNTAKSİS XƏTASI: Silinəcək cədvəlin adı tapılmadı.\n");
+             return false;
+        }
+            
 
-        return;
+        // return;
     }
     // }
 
@@ -545,7 +587,7 @@ bool executeSQL(const char *sql)
     // ----------------------------------------------------------------
     if (matchKeyword(&cursor, "INSERT"))
     {
-        int insertMode=0;
+        int insertMode = 0;
         // Standart "OR REPLACE" və ya "OR IGNORE" sintaksisini yoxlayırıq
         if (matchKeyword(&cursor, "OR REPLACE"))
         {
@@ -618,12 +660,14 @@ bool executeSQL(const char *sql)
             {
                 printf("SİNTAKSİS XƏTASI: Cədvəl adı tapılmadı.\n");
             }
+            return true;
         }
         else
         {
             printf("SİNTAKSİS XƏTASI: 'INTO' açar sözü tapılmadı.\n");
+            return false;
         }
-        return;
+        // return;
     }
 
     // ----------------------------------------------------------------
@@ -660,7 +704,7 @@ bool executeSQL(const char *sql)
                 else
                 {
                     printf("SİNTAKSİS XƏTASI: JOIN üçün 'ON' şərti tapılmadı.\n");
-                    return;
+                    return false;
                 }
             }
 
@@ -718,28 +762,34 @@ bool executeSQL(const char *sql)
                 // Həm join, həm şərt funksiyası
                 // selectJoinWhereData(table1, table2, parentCol, childCol, ... where massivləri ...);
             }
+            return true;
         }
         else
         {
             printf("SİNTAKSİS XƏTASI: 'FROM' açar sözü tapılmadı.\n");
+            return false;
         }
-        return;
     }
 
     // ----------------------------------------------------------------
     // X. CONNECT DATABASE / USE (Verilənlər bazasına qoşulma)
     // ----------------------------------------------------------------
-    if (matchKeyword(&cursor, "CONNECT DATABASE") || matchKeyword(&cursor, "CONNECT DB") || matchKeyword(&cursor, "USE")) {
+    if (matchKeyword(&cursor, "CONNECT DATABASE") || matchKeyword(&cursor, "CONNECT DB") || matchKeyword(&cursor, "USE"))
+    {
         char dbName[64] = {0};
         char dbPsw[32] = {0}; // Parolu təhlükəsiz saxlamaq üçün local bufer
 
-        if (extractWord(&cursor, dbName, sizeof(dbName))) {
+        if (extractWord(&cursor, dbName, sizeof(dbName)))
+        {
             // PASSWORD açar sözünü skan etmək üçün dövr
-            while (true) {
-                if (matchKeyword(&cursor, "PASSWORD")) {
-                    if (!extractWord(&cursor, dbPsw, sizeof(dbPsw))) {
+            while (true)
+            {
+                if (matchKeyword(&cursor, "PASSWORD"))
+                {
+                    if (!extractWord(&cursor, dbPsw, sizeof(dbPsw)))
+                    {
                         printf("SİNTAKSİS XƏTASI: PASSWORD açar sözündən sonra parol daxil edilməyib.\n");
-                        return;
+                        return false;
                     }
                     continue;
                 }
@@ -749,20 +799,30 @@ bool executeSQL(const char *sql)
             // 🌟 Mühərrikin backend tərəfindəki real binar qoşulma funksiyası çağırılır
             bool success = connectDb(dbName, dbPsw);
 
-            if (success) {
+            if (success)
+            {
                 printf("[UĞURLU]: '%s' verilənlər bazasına qoşulma aktivləşdirildi.\n", dbName);
-                if (strlen(dbPsw) > 0) {
+                if (strlen(dbPsw) > 0)
+                {
                     printf("               -> Qoşulma növü: Təhlükəsiz (Parol təsdiqləndi).\n");
-                } else {
+                }
+                else
+                {
                     printf("               -> Qoşulma növü: Açıq (Parolsuz baza).\n");
                 }
-            } else {
+            }
+            else
+            {
                 printf("[XƏTA]: '%s' bazasına qoşulmaq mümkün olmadı! (Baza mövcut deyil və ya parol yalnışdır).\n", dbName);
             }
-        } else {
-            printf("SİNTAKSİS XƏTASI: Qoşulmaq üçün verilənlər bazasının adı tapılmadı.\n");
+             return true;
         }
-        return;
+        else
+        {
+            printf("SİNTAKSİS XƏTASI: Qoşulmaq üçün verilənlər bazasının adı tapılmadı.\n");
+             return false;
+        }
+        // return;
     }
 
     printf("[XƏTA]: Dəstəklənməyən SQL əmri və ya sintaksis xətası!\n");

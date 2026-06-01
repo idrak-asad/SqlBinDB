@@ -9,7 +9,7 @@ bool createTable(char *tableName, char *columnNames[], char *columnTypes[],
                  char *Constraints[], bool reCreate, int max_rows);
 // bool dropTable(const char *tableName);
 bool dropTable(const char *tableName, int hardDrop);
-void selectTables(char *tableName);
+void selectTables(const char *tableName);
 
 // ====================================================================
 // 2. DROP TABLE
@@ -242,7 +242,7 @@ bool createTable(char *tableName, char *columnNames[], char *columnTypes[],
 // ====================================================================
 // 3. SELECT TABLES
 // ====================================================================
-void selectTables(char *tableName)
+void selectTables(const char *tableName)
 {
   if (strlen(current_db_path) == 0)
   {

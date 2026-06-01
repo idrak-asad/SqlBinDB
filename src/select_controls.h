@@ -42,13 +42,20 @@ void parseJoinCondition(char *joinCond[], char *parentCol[], char *childCol[]){
 
 
 void selectData(const char *tableName) {
-    if (strlen(current_db_path) == 0) return;
+    // if (strlen(current_db_path) == 0) return;
 
-    char tableFilePath[256];
-    snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
+    // char tableFilePath[256];
+    // snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
 
-    FILE *file = fopen(tableFilePath, "rb");
-    if (!file) return;
+    // FILE *file = fopen(tableFilePath, "rb");
+    // if (!file) return;
+
+    File file = openTable(tableName, "r");
+
+    if (!file)
+    {
+        return 0; 
+    }
 
     DBHeader header;
     fread(&header, sizeof(DBHeader), 1, file);
@@ -744,18 +751,25 @@ int32_t selectWhereStep(const char *tableName,
                         const char *whereColumnsName[], void *whereColumnsData[], const char *whereOperators[], 
                         uint32_t startRowNo) 
 {
-    if (strlen(current_db_path) == 0) {
-        printf("XETA: Evvelce bir verilener bazasina qoshulun!\n");
-        return -1;
-    }
+    // if (strlen(current_db_path) == 0) {
+    //     printf("XETA: Evvelce bir verilener bazasina qoshulun!\n");
+    //     return -1;
+    // }
 
-    char tableFilePath[256];
-    snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
+    // char tableFilePath[256];
+    // snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
 
-    FILE *file = fopen(tableFilePath, "rb");
-    if (!file) {
-        printf("Error: '%s' cadvali tapilmadi!\n", tableName);
-        return -1;
+    // FILE *file = fopen(tableFilePath, "rb");
+    // if (!file) {
+    //     printf("Error: '%s' cadvali tapilmadi!\n", tableName);
+    //     return -1;
+    // }
+
+    File file = openTable(tableName, "r");
+
+    if (!file)
+    {
+        return 0; 
     }
 
     DBHeader header;
