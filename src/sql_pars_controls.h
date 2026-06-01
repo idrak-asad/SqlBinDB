@@ -654,5 +654,44 @@ void executeSQL(const char *sql)
         return;
     }
 
+    // ----------------------------------------------------------------
+    // X. CONNECT DATABASE / USE (Verilənlər bazasına qoşulma)
+    // ----------------------------------------------------------------
+    if (matchKeyword(&cursor, "CONNECT DATABASE") || matchKeyword(&cursor, "CONNECT DB") || matchKeyword(&cursor, "USE")) {
+        char dbName[64] = {0};
+        char dbPsw[32] = {0}; // Parolu təhlükəsiz saxlamaq üçün local bufer
+
+        if (extractWord(&cursor, dbName, sizeof(dbName))) {
+            // PASSWORD açar sözünü skan etmək üçün dövr
+            while (true) {
+                if (matchKeyword(&cursor, "PASSWORD")) {
+                    if (!extractWord(&cursor, dbPsw, sizeof(dbPsw))) {
+                        printf("SİNTAKSİS XƏTASI: PASSWORD açar sözündən sonra parol daxil edilməyib.\n");
+                        return;
+                    }
+                    continue;
+                }
+                break;
+            }
+
+            // 🌟 Mühərrikin backend tərəfindəki real binar qoşulma funksiyası çağırılır
+            bool success = connectDb(dbName, dbPsw);
+
+            if (success) {
+                printf("[UĞURLU]: '%s' verilənlər bazasına qoşulma aktivləşdirildi.\n", dbName);
+                if (strlen(dbPsw) > 0) {
+                    printf("               -> Qoşulma növü: Təhlükəsiz (Parol təsdiqləndi).\n");
+                } else {
+                    printf("               -> Qoşulma növü: Açıq (Parolsuz baza).\n");
+                }
+            } else {
+                printf("[XƏTA]: '%s' bazasına qoşulmaq mümkün olmadı! (Baza mövcut deyil və ya parol yalnışdır).\n", dbName);
+            }
+        } else {
+            printf("SİNTAKSİS XƏTASI: Qoşulmaq üçün verilənlər bazasının adı tapılmadı.\n");
+        }
+        return;
+    }
+
     printf("[XƏTA]: Dəstəklənməyən SQL əmri və ya sintaksis xətası!\n");
 }
