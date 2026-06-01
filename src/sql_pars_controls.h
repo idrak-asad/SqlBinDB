@@ -233,121 +233,140 @@ void executeSQL(const char *sql)
     // ----------------------------------------------------------------
     // 5. CREATE TABLE [RECREATE] table_name (col type [constraint], ...) [MAX_ROWS n]
     // ----------------------------------------------------------------
-    if (matchKeyword(&cursor, "CREATE TABLE"))
-    {
+// ----------------------------------------------------------------
+    // AUTO-INJECT CHILD TABLES AS INT COLUMNS PARSER
+    // ----------------------------------------------------------------
+    if (matchKeyword(&cursor, "CREATE TABLE")) {
         char tableName[64] = {0};
 
-        if (extractWord(&cursor, tableName, sizeof(tableName)))
-        {
-            bool reCreate = matchKeyword(&cursor, "RECREATE");
+        if (extractWord(&cursor, tableName, sizeof(tableName))) {
             char schemaBuf[256] = {0};
-
-            if (extractParentheses(&cursor, schemaBuf, sizeof(schemaBuf)))
-            {
-                // Opsional: MAX_ROWS təyini üçün yoxlama (Default: 1000)
-                int maxRows = 1000;
-                if (matchKeyword(&cursor, "MAX_ROWS"))
-                {
-                    char maxRowsStr[16] = {0};
-                    if (extractWord(&cursor, maxRowsStr, sizeof(maxRowsStr)))
-                    {
-                        maxRows = atoi(maxRowsStr);
-                    }
-                }
-
-// add_controls.h-da təyin olunan MAX_COLUMNS limitinə uyğun local buferlər (Zero-allocation)
-#define MAX_PARSED_COLS 15
+            
+            // 1. İSTİFADƏÇİNİN YAZDIĞI ƏSAS SÜTUNLARI OXU
+            if (extractParentheses(&cursor, schemaBuf, sizeof(schemaBuf))) {
+                
+                #define MAX_PARSED_COLS 20 // Child-lar da əlavə olunacağı üçün limiti artırdıq
                 char colNamesBuf[MAX_PARSED_COLS][32] = {0};
-                char colTypesBuf[MAX_PARSED_COLS][16] = {0};
+                char colTypesBuf[MAX_PARSED_COLS][32] = {0};
                 char colConstraintsBuf[MAX_PARSED_COLS][64] = {0};
 
-                // Real funksiyaya ötürüləcək char* tipində pointer massivləri
                 char *columnNames[MAX_PARSED_COLS + 1] = {NULL};
                 char *columnTypes[MAX_PARSED_COLS + 1] = {NULL};
                 char *constraints[MAX_PARSED_COLS + 1] = {NULL};
 
-                // Mötərizə daxilindən çıxardığımız sxemi (schemaBuf) analiz edən skaner
-                const char *schemaCursor = schemaBuf;
+                const char* schemaCursor = schemaBuf;
                 int colCount = 0;
 
-                while (*schemaCursor && colCount < MAX_PARSED_COLS)
-                {
+                // Əsas sütunların parçalanması
+                while (*schemaCursor && colCount < MAX_PARSED_COLS) {
                     schemaCursor = skipSpaces(schemaCursor);
-                    if (*schemaCursor == '\0')
-                        break;
+                    if (*schemaCursor == '\0') break;
 
-                    // 1. Sütun Adını oxu
-                    if (!extractWord(&schemaCursor, colNamesBuf[colCount], 32))
-                        break;
+                    if (!extractWord(&schemaCursor, colNamesBuf[colCount], 32)) break;
                     columnNames[colCount] = colNamesBuf[colCount];
 
-                    // 2. Sütun Tipini oxu (INT, FLOAT, CHAR2 və s.)
-                    if (!extractWord(&schemaCursor, colTypesBuf[colCount], 16))
-                        break;
+                    char baseType[16] = {0};
+                    if (!extractWord(&schemaCursor, baseType, sizeof(baseType))) break;
+                    strcpy(colTypesBuf[colCount], baseType);
+
+                    // Ölçü mötərizəsi varsa (Məs: CHAR2(10)) birləşdir
+                    schemaCursor = skipSpaces(schemaCursor);
+                    if (*schemaCursor == '(') {
+                        strcat(colTypesBuf[colCount], "（"); // mötərizə aç
+                        schemaCursor++;
+                        while (*schemaCursor && isdigit((unsigned char)*schemaCursor)) {
+                            char digitStr[2] = {*schemaCursor, '\0'};
+                            strcat(colTypesBuf[colCount], digitStr);
+                            schemaCursor++;
+                        }
+                        if (*schemaCursor == ')') {
+                            strcat(colTypesBuf[colCount], ")");
+                            schemaCursor++;
+                        }
+                    }
                     columnTypes[colCount] = colTypesBuf[colCount];
 
-                    // 3. Sütun Məhdudiyyətlərini (PRIMARY KEY, NOT NULL və s.) növbəti vergülə qədər oxu
+                    // Constraint-ləri oxu
                     schemaCursor = skipSpaces(schemaCursor);
                     int cIdx = 0;
-                    while (*schemaCursor && *schemaCursor != ',')
-                    {
-                        if (cIdx < 63)
-                        {
-                            colConstraintsBuf[colCount][cIdx++] = *schemaCursor;
-                        }
+                    while (*schemaCursor && *schemaCursor != ',') {
+                        if (cIdx < 63) colConstraintsBuf[colCount][cIdx++] = *schemaCursor;
                         schemaCursor++;
                     }
                     colConstraintsBuf[colCount][cIdx] = '\0';
-
-                    // Sağ tərəfdə qalan boşluqları təmizlə (Trim trailing spaces)
-                    while (cIdx > 0 && isspace((unsigned char)colConstraintsBuf[colCount][cIdx - 1]))
-                    {
+                    while (cIdx > 0 && isspace((unsigned char)colConstraintsBuf[colCount][cIdx - 1])) {
                         colConstraintsBuf[colCount][--cIdx] = '\0';
                     }
                     constraints[colCount] = colConstraintsBuf[colCount];
 
-                    // Əgər növbəti element vergüldürsə, üzərindən keç və növbəti sütuna keç
-                    if (*schemaCursor == ',')
-                    {
-                        schemaCursor++;
-                    }
+                    if (*schemaCursor == ',') schemaCursor++;
                     colCount++;
                 }
 
-                // Pointer massivlərinin sonunu mütləq NULL ilə bitiririk
+                // 2. CHILD_TABLES BLOKUNU OXU VƏ SÜTUN KİMİ ENJEKTE ET
+                cursor = skipSpaces(cursor);
+                int childCount = 0;
+
+                if (matchKeyword(&cursor, "CHILD_TABLES")) {
+                    char childBuf[256] = {0};
+                    if (extractParentheses(&cursor, childBuf, sizeof(childBuf))) {
+                        const char* childCursor = childBuf;
+                        
+                        while (*childCursor && colCount < MAX_PARSED_COLS) {
+                            childCursor = skipSpaces(childCursor);
+                            if (*childCursor == '\0') break;
+
+                            // Local müvəqqəti buferə child adını oxuyuruq
+                            char tempChildName[32] = {0};
+                            if (extractWord(&childCursor, tempChildName, 32)) {
+                                
+                                // 🌟 AVTOMATİK SÜTUN ENJEKSİYASI (Auto-injection)
+                                strncpy(colNamesBuf[colCount], tempChildName, 31);
+                                columnNames[colCount] = colNamesBuf[colCount];
+
+                                // Tipi məcburi olaraq "INT" təyin edirik
+                                strcpy(colTypesBuf[colCount], "INT");
+                                columnTypes[colCount] = colTypesBuf[colCount];
+
+                                // Child sütunları üçün default constraint (Boş buraxılır və ya istəsəniz "NOT NULL" edə bilərsiniz)
+                                strcpy(colConstraintsBuf[colCount], ""); 
+                                constraints[colCount] = colConstraintsBuf[colCount];
+
+                                colCount++;
+                                childCount++;
+                            }
+
+                            childCursor = skipSpaces(childCursor);
+                            if (*childCursor == ',') childCursor++;
+                        }
+                    }
+                }
+
+                // Massivlərin sonunu NULL ilə bağlayırıq (Real sütunlar + Child sütunları bütöv şəkildə)
                 columnNames[colCount] = NULL;
                 columnTypes[colCount] = NULL;
                 constraints[colCount] = NULL;
 
-                // 🌟 Mühərrikin backend tərəfindəki real funksiya çağırılır
-                bool success = createTable(tableName, columnNames, columnTypes, constraints, reCreate, maxRows);
-
-                if (success)
-                {
-                    printf("[UĞURLU]: '%s' cədvəli %d sütun və maks %d sətir limiti ilə binar olaraq yaradıldı.\n", tableName, colCount, maxRows);
-                    // İcra olunan strukturu konsolda vizuallaşdırmaq üçün:
-                    for (int i = 0; i < colCount; i++)
-                    {
-                        printf("   -> Sütun [%d]: Ad='%s', Tip='%s', Məhdudiyyət='%s'\n",
+                // 3. REAL FUNKSİYANIN ÇAĞIRILMASI
+                // Artıq sizin standart createTable funksiyanıza child-lar da daxil olmaqla vahid massiv gedir.
+                bool success = createTable(tableName, columnNames, columnTypes, constraints, false, 1000);
+                
+                if (success) {
+                    printf("\n[SİSTEM UĞURLA YIĞILDI]: '%s' cədvəli child sütunları ilə birlikdə yaradıldı.\n", tableName);
+                    printf(" -> Ümumi ötürülən sütun sayı (Orijinal + Child): %d\n", colCount);
+                    for (int i = 0; i < colCount; i++) {
+                        printf("   -> [%d] Sütun: Ad='%s', Tip='%s', Constraint='%s'\n", 
                                i + 1, columnNames[i], columnTypes[i], constraints[i]);
                     }
                 }
-                else
-                {
-                    printf("[XƏTA]: Cədvəlin binar qovluq və ya metadata faylları yaradıla bilmədi.\n");
-                }
+            } else {
+                printf("SİNTAKSİS XƏTASI: Sütun strukturu tapılmadı.\n");
             }
-            else
-            {
-                printf("SİNTAKSİS XƏTASI: Cədvəl strukturu üçün mötərizə '(...)' tapılmadı.\n");
-            }
-        }
-        else
-        {
-            printf("SİNTAKSİS XƏTASI: Cədvəl adı tapılmadı.\n");
         }
         return;
     }
+
+  
 
     // void parseDropTable(const char *cursor)
     // {
