@@ -180,17 +180,18 @@ bool connectDb(const char *DbName, const char *DbPsw) {
     return false;
 }
 
-// ====================================================================
-// DROP DATABASE
-// ====================================================================
+#include <stdlib.h> // Desktop platformalarında system() funksiyası üçün
+
 #if defined(TARGET_PLATFORM_ESP32)
-// ESP32 LittleFS üçün yaddaş korlanmasının qarşısını alan TAM TƏHLÜKƏSİZ silmə funksiyası
+// ====================================================================
+// ESP32 ÜÇÜN STACK-I QORUYAN VƏ ÇÖKMƏYƏN SİLMƏ MEXANİZMİ
+// ====================================================================
+
+// Rekursiv silmə funksiyamız (dəyişmədi, sadəcə ayrıca task daxilində çağırılacaq)
 void helperDeleteDirSafe(const char *dirPath) {
     while (true) {
         File dir = LittleFS.open(dirPath, "r");
-        if (!dir) {
-            break; // Qovluq yoxdursa və ya açıla bilmirsə çıx
-        }
+        if (!dir) break; 
         
         if (!dir.isDirectory()) {
             dir.close();
@@ -201,36 +202,50 @@ void helperDeleteDirSafe(const char *dirPath) {
         File file = dir.openNextFile();
         if (!file) {
             dir.close();
-            break; // Qovluğun içi tamamilə boşaldı, dövrdən çıxılır
+            break; 
         }
 
-        // Faylın tam yolunu əldə edirik
         String entryPath = file.path();
         if (entryPath.length() == 0) {
             entryPath = String(dirPath) + "/" + file.name();
         }
         bool isSubDir = file.isDirectory();
 
-        // 🔥 KRİTİK ADDIM: Silmə əməliyyatından əvvəl bütün açıq fayl/qovluq 
-        // göstəricilərini bağlayırıq ki, LittleFS daxili strukturu çökməsin!
         file.close();
         dir.close(); 
 
         if (isSubDir) {
-            helperDeleteDirSafe(entryPath.c_str()); // Alt qovluğu təhlükəsiz boşalt və sil
+            helperDeleteDirSafe(entryPath.c_str()); 
         } else {
-            LittleFS.remove(entryPath.c_str());    // Faylı sil
+            LittleFS.remove(entryPath.c_str());    
         }
-        
-        // Dövr yenidən başlayacaq, qovluğu təmiz və təzə iteratla açacaq.
     }
-    // İçi tamamilə boşaldılmış ana qovluğu silirik
     LittleFS.rmdir(dirPath);
+}
+
+// FreeRTOS Taskına ötürüləcək parametrlər üçün struktur
+typedef struct {
+    char dirPath[256];
+    SemaphoreHandle_t doneSemaphore;
+} DeleteTaskParam;
+
+// Müvəqqəti yaradılacaq və geniş yaddaşda (Stack) işləyəcək Task funksiyası
+void helperDeleteDirTask(void *pvParameters) {
+    DeleteTaskParam *param = (DeleteTaskParam *)pvParameters;
+    if (param != NULL) {
+        // Ağır fayl sistemi əməliyyatını burda rahat icra edirik (Stak limiti problemi yoxdur)
+        helperDeleteDirSafe(param->dirPath);
+        
+        if (param->doneSemaphore != NULL) {
+            xSemaphoreGive(param->doneSemaphore); // Ana dövrə işin bitdiyini xəbər veririk
+        }
+    }
+    vTaskDelete(NULL); // Task özünü yaddaşdan silir
 }
 #endif
 
 // ====================================================================
-// DROP DATABASE (ÇÖKMƏYƏN YENİLƏNMİŞ VARIANT)
+// DROP DATABASE (TAM STABİL VƏ TƏHLÜKƏSİZ VARIANT)
 // ====================================================================
 bool dropDb(char *DbName, char *DbPsw) {
     char savedPsw[18];
@@ -247,8 +262,7 @@ bool dropDb(char *DbName, char *DbPsw) {
         return false;
     }
 
-    // 2. Əgər silinən baza hal-hazırda aktiv qoşulmuş bazadırsa, əvvəlcə əlaqəni kəsirik
-    // (Aktiv qoşulu faylların silinməyə çalışılması da çökməyə səbəb ola bilər)
+    // 2. Əgər silinən baza hal-hazırda aktiv qoşulmuş bazadırsa, əlaqəni kəsirik
     if (strcmp(current_db_name, DbName) == 0) {
         disConnectDb();
     }
@@ -266,15 +280,36 @@ bool dropDb(char *DbName, char *DbPsw) {
         return false;
     }
 
-    // 4. Fiziki qovluqların və daxili binar faylların təhlükəsiz silinməsi
+    // 4. Fiziki qovluqların və daxili binar faylların silinməsi
     char pathBuffer[300];
     
 #if defined(TARGET_PLATFORM_ESP32)
-    // ESP32 LittleFS üzərində yeni təhlükəsiz təmizləmə çağırılır
     snprintf(pathBuffer, sizeof(pathBuffer), "%s/%s", LFS_DIR, DbName);
-    printf("Fiziki qovluq silinir (LittleFS): %s\n", pathBuffer);
-    helperDeleteDirSafe(pathBuffer);
-    printf("[Uqurlu] Fiziki qovluq ve alt binar senedler tam temizlendi.\n");
+    printf("Fiziki qovluq silinir (LittleFS Genis Task vasiteile): %s\n", pathBuffer);
+    
+    // loopTask-ın stakını qorumaq üçün FreeRTOS Semaphor və dinamik struktur yaradırıq
+    SemaphoreHandle_t sem = xSemaphoreCreateBinary();
+    DeleteTaskParam *param = (DeleteTaskParam *)malloc(sizeof(DeleteTaskParam));
+    
+    if (param != NULL && sem != NULL) {
+        strncpy(param->dirPath, pathBuffer, sizeof(param->dirPath));
+        param->doneSemaphore = sem;
+        
+        // 🔥 12 KB (12288 bayt) stack ölçüsü ilə yeni müstəqil task yaradırıq
+        xTaskCreate(helperDeleteDirTask, "db_lfs_del_task", 12288, param, 5, NULL);
+        
+        // Əsas proqram (loopTask) burda bloklanır və gözləyir, stakı isə tamamilə təhlükəsiz qalır
+        xSemaphoreTake(sem, portMAX_DELAY);
+        
+        vSemaphoreDelete(sem);
+        free(param);
+        printf("[Uqurlu] Fiziki qovluq ve alt binar senedler tam temizlendi.\n");
+    } else {
+        // Nadir halda RAM tam dolarsa (Fallback olaraq birbaşa çağırış)
+        if(sem) vSemaphoreDelete(sem);
+        if(param) free(param);
+        helperDeleteDirSafe(pathBuffer);
+    }
     
 #elif defined(TARGET_PLATFORM_WINDOWS)
     snprintf(pathBuffer, sizeof(pathBuffer), "rmdir /s /q \"%s\\%s\"", MASTER_DIR, DbName);
@@ -289,6 +324,11 @@ bool dropDb(char *DbName, char *DbPsw) {
 
     return true;
 }
+
+
+
+
+
 // ====================================================================
 // DISCONNECT DATABASE
 // ====================================================================
