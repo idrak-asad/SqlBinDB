@@ -184,96 +184,111 @@ bool connectDb(const char *DbName, const char *DbPsw) {
 // DROP DATABASE
 // ====================================================================
 #if defined(TARGET_PLATFORM_ESP32)
-// ESP32-də LittleFS qovluğu silmək üçün öncə içinin boş olmasını tələb edir.
-// Bu köməkçi funksiya rekursiv olaraq daxildəki bütün fayl və qovluqları təmizləyir.
-void helperDeleteDirRecursive(const char *path) {
-    File root = LittleFS.open(path);
-    if (!root) return;
-    if (!root.isDirectory()) {
-        root.close();
-        LittleFS.remove(path);
-        return;
-    }
+// ESP32 LittleFS üçün yaddaş korlanmasının qarşısını alan TAM TƏHLÜKƏSİZ silmə funksiyası
+void helperDeleteDirSafe(const char *dirPath) {
+    while (true) {
+        File dir = LittleFS.open(dirPath, "r");
+        if (!dir) {
+            break; // Qovluq yoxdursa və ya açıla bilmirsə çıx
+        }
+        
+        if (!dir.isDirectory()) {
+            dir.close();
+            LittleFS.remove(dirPath);
+            return;
+        }
 
-    File file = root.openNextFile();
-    while (file) {
+        File file = dir.openNextFile();
+        if (!file) {
+            dir.close();
+            break; // Qovluğun içi tamamilə boşaldı, dövrdən çıxılır
+        }
+
+        // Faylın tam yolunu əldə edirik
         String entryPath = file.path();
         if (entryPath.length() == 0) {
-            entryPath = String(path) + "/" + file.name();
+            entryPath = String(dirPath) + "/" + file.name();
         }
+        bool isSubDir = file.isDirectory();
 
-        if (file.isDirectory()) {
-            file.close();
-            helperDeleteDirRecursive(entryPath.c_str());
+        // 🔥 KRİTİK ADDIM: Silmə əməliyyatından əvvəl bütün açıq fayl/qovluq 
+        // göstəricilərini bağlayırıq ki, LittleFS daxili strukturu çökməsin!
+        file.close();
+        dir.close(); 
+
+        if (isSubDir) {
+            helperDeleteDirSafe(entryPath.c_str()); // Alt qovluğu təhlükəsiz boşalt və sil
         } else {
-            file.close();
-            LittleFS.remove(entryPath.c_str());
+            LittleFS.remove(entryPath.c_str());    // Faylı sil
         }
-        file = root.openNextFile();
+        
+        // Dövr yenidən başlayacaq, qovluğu təmiz və təzə iteratla açacaq.
     }
-    root.close();
-    LittleFS.rmdir(path);
+    // İçi tamamilə boşaldılmış ana qovluğu silirik
+    LittleFS.rmdir(dirPath);
 }
 #endif
 
+// ====================================================================
+// DROP DATABASE (ÇÖKMƏYƏN YENİLƏNMİŞ VARIANT)
+// ====================================================================
 bool dropDb(char *DbName, char *DbPsw) {
     char savedPsw[18];
     long offset;
     
     // 1. Bazanın mövcudluğunu və parolunu yoxlayırıq
     if (!helperCheckDbExists(DbName, savedPsw, &offset)) {
-        Serial.printf("Xəta: '%s' adında bir bazaya rast gəlinmədi!\n", DbName);
+        printf("Xeta: '%s' adinda bir bazaya rast gelinmedi!\n", DbName);
         return false;
     }
 
     if (strcmp(savedPsw, DbPsw) != 0) {
-        Serial.printf("Xəta: Parol səhvdir! '%s' bazası silinə bilməz.\n", DbName);
+        printf("Xeta: Parol sehvdir! '%s' bazasi siline bilmez.\n", DbName);
         return false;
     }
 
-    // 2. Mərkəzi qeydiyyat faylında (master_dbs.db) 'is_deleted' bayrağını 1 edirik
+    // 2. Əgər silinən baza hal-hazırda aktiv qoşulmuş bazadırsa, əvvəlcə əlaqəni kəsirik
+    // (Aktiv qoşulu faylların silinməyə çalışılması da çökməyə səbəb ola bilər)
+    if (strcmp(current_db_name, DbName) == 0) {
+        disConnectDb();
+    }
+
+    // 3. Mərkəzi qeydiyyat faylında (master_dbs.db) 'is_deleted' bayrağını 1 edirik
     FILE *f = fopen(MASTER_FILE, "rb+");
     if (f) {
         fseek(f, offset, SEEK_SET);
         uint8_t deleteFlag = 1;
         fwrite(&deleteFlag, 1, 1, f); 
         fclose(f);
-        Serial.printf("[Uğurlu] '%s' bazası mərkəzi qeydiyyatdan silindi.\n", DbName);
+        printf("[Uqurlu] '%s' bazasi merkezi qeydiyyatdan silindi.\n", DbName);
     } else {
-        Serial.println("XƏTA: master faylı 'rb+' rejimində açıla bilmədi!");
+        printf("XETA: master fayli 'rb+' rejiminde acila bilmedi!\n");
         return false;
     }
 
-    // 3. Fiziki qovluqların və daxili binar faylların tamamilə silinməsi
+    // 4. Fiziki qovluqların və daxili binar faylların təhlükəsiz silinməsi
     char pathBuffer[300];
     
 #if defined(TARGET_PLATFORM_ESP32)
-    // ESP32 LittleFS üzərində rekursiv təmizləmə çağırılır
+    // ESP32 LittleFS üzərində yeni təhlükəsiz təmizləmə çağırılır
     snprintf(pathBuffer, sizeof(pathBuffer), "%s/%s", LFS_DIR, DbName);
-    Serial.printf("Fiziki qovluq silinir (LittleFS): %s\n", pathBuffer);
-    helperDeleteDirRecursive(pathBuffer);
+    printf("Fiziki qovluq silinir (LittleFS): %s\n", pathBuffer);
+    helperDeleteDirSafe(pathBuffer);
+    printf("[Uqurlu] Fiziki qovluq ve alt binar senedler tam temizlendi.\n");
     
 #elif defined(TARGET_PLATFORM_WINDOWS)
-    // Windows üçün qovluğu alt faylları ilə birgə silən OS əmri (/s /q)
     snprintf(pathBuffer, sizeof(pathBuffer), "rmdir /s /q \"%s\\%s\"", MASTER_DIR, DbName);
     system(pathBuffer);
     printf("Fiziki qovluq silindi (Windows): %s/%s\n", MASTER_DIR, DbName);
     
 #elif defined(TARGET_PLATFORM_LINUX)
-    // Linux üçün qovluğu alt faylları ilə birgə silən OS əmri (rm -rf)
     snprintf(pathBuffer, sizeof(pathBuffer), "rm -rf \"%s/%s\"", MASTER_DIR, DbName);
     system(pathBuffer);
     printf("Fiziki qovluq silindi (Linux): %s/%s\n", MASTER_DIR, DbName);
 #endif
 
-    // 4. Əgər silinən baza hal-hazırda aktiv qoşulmuş bazadırsa, əlaqəni kəsirik
-    if (strcmp(current_db_name, DbName) == 0) {
-        disConnectDb();
-    }
-
     return true;
 }
-
 // ====================================================================
 // DISCONNECT DATABASE
 // ====================================================================
