@@ -192,7 +192,7 @@ bool executeSQL(const char *sql)
             printf("SİNTAKSİS XƏTASI: Verilənlər bazasının adı tapılmadı.\n");
              return false;
         }
-        // return false;
+       return true;
     }
 
     if (matchKeyword(&cursor, "DROP DATABASE"))
@@ -228,7 +228,7 @@ bool executeSQL(const char *sql)
             printf("SİNTAKSİS XƏTASI: Silinəcək verilənlər bazasının adı tapılmadı.\n");
              return false;
         }
-        // return;
+        return true;
     }
 
     // ----------------------------------------------------------------
@@ -461,10 +461,10 @@ bool executeSQL(const char *sql)
     // void parseDropTable(const char *cursor)
     // {
 
-    if (matchKeyword(&cursor, "DROP TABLE"))
+    if (matchKeyword(&cursor, "DROP TABLE")) 
+    {
         char tableName[64];
     int hardDrop = 0; // Susmaya görə: 0 (RESTRICT)
-    {
         // Cədvəlin adını götürürük
         if (extractWord(&cursor, tableName, sizeof(tableName)))
         {
@@ -510,7 +510,7 @@ bool executeSQL(const char *sql)
         }
             
 
-        // return;
+        return true;
     }
     // }
 
@@ -521,10 +521,11 @@ bool executeSQL(const char *sql)
     // {
 
     if (matchKeyword(&cursor, "DELETE FROM"))
-        char tableName[64] = {0};
+     
+    {
+           char tableName[64] = {0};
     int hardDelete = 0; // Susmaya görə: 0 (RESTRICT)
     char whereCond[256] = {0};
-    {
         if (extractWord(&cursor, tableName, sizeof(tableName)))
         {
             // 1. WHERE şərtini yoxlayırıq
@@ -577,9 +578,9 @@ bool executeSQL(const char *sql)
         else
             printf("SİNTAKSİS XƏTASI: Cədvəl adı tapılmadı.\n");
 
-        return 0;
+        return false;
     }
-    return 1;
+    return true;
     // }
 
     // ----------------------------------------------------------------
@@ -667,7 +668,7 @@ bool executeSQL(const char *sql)
             printf("SİNTAKSİS XƏTASI: 'INTO' açar sözü tapılmadı.\n");
             return false;
         }
-        // return;
+         return true;
     }
 
     // ----------------------------------------------------------------
@@ -769,6 +770,7 @@ bool executeSQL(const char *sql)
             printf("SİNTAKSİS XƏTASI: 'FROM' açar sözü tapılmadı.\n");
             return false;
         }
+         return true;
     }
 
     // ----------------------------------------------------------------
@@ -822,7 +824,7 @@ bool executeSQL(const char *sql)
             printf("SİNTAKSİS XƏTASI: Qoşulmaq üçün verilənlər bazasının adı tapılmadı.\n");
              return false;
         }
-        // return;
+        return true;
     }
 
     printf("[XƏTA]: Dəstəklənməyən SQL əmri və ya sintaksis xətası!\n");
