@@ -607,7 +607,7 @@ bool executeSQL(const char *sql)
 
         return false;
     }
-    return true;
+    
     // }
 
     // ----------------------------------------------------------------
@@ -805,7 +805,7 @@ bool executeSQL(const char *sql)
     // ----------------------------------------------------------------
     if (matchKeyword(&cursor, "CONNECT DATABASE") || matchKeyword(&cursor, "CONNECT DB") || matchKeyword(&cursor, "USE"))
     {
-        printf("connecting DB.\n");
+        printf("connecting DB....\n");
         char dbName[64] = {0};
         char dbPsw[32] = {0}; // Parolu təhlükəsiz saxlamaq üçün local bufer
 
@@ -856,4 +856,5 @@ bool executeSQL(const char *sql)
     }
 
     printf("[XƏTA]: Dəstəklənməyən SQL əmri və ya sintaksis xətası!\n");
+    return false;
 }
