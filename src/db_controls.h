@@ -27,7 +27,7 @@
 // FUNKSİYA PROTOTİPLƏRİ
 bool helperCheckDbExists(const char *DbName, char *outPsw, long *outOffset);
 void initSystem();
-bool createDb(const char *DbName, const char *DbPsw, bool reCreate);
+bool createDb(const char *DbName, const char *DbPsw);
 bool dropDb(char *DbName, char *DbPsw);
 bool connectDb(const char *DbName, const char *DbPsw);
 bool disConnectDb();
@@ -81,7 +81,7 @@ void initSystem() {
 // ===================================================================
 // CREATE DATABASE
 // ===================================================================
-bool createDb(const char *DbName, const char *DbPsw, bool reCreate) {
+bool createDb(const char *DbName, const char *DbPsw) {
     initSystem();
     
     // "rb+" mövcut faylı oxuyub-yazmaq üçündür. Əgər yoxdursa yuxarıda yaradılıb.
@@ -98,20 +98,20 @@ bool createDb(const char *DbName, const char *DbPsw, bool reCreate) {
     while (fread(&reg, sizeof(DBRegistry), 1, f)) {
         if (reg.is_deleted == 0 && strcmp(reg.db_name, DbName) == 0) {
             exists = true;
-            if (!reCreate) {
-                fclose(f);
-                return true; 
-            }
+            // if (!reCreate) {
+            //     fclose(f);
+            //     return true; 
+            // }
             break;
         }
         offset += sizeof(DBRegistry);
     }
 
-    if (exists && reCreate) {
-        fseek(f, offset, SEEK_SET);
-        uint8_t del = 1;
-        fwrite(&del, 1, 1, f); 
-    }
+    // if (exists && reCreate) {
+    //     fseek(f, offset, SEEK_SET);
+    //     uint8_t del = 1;
+    //     fwrite(&del, 1, 1, f); 
+    // }
 
     // Yeni bazanı mərkəzi qeydiyyata yazırıq
     fseek(f, 0, SEEK_END);
