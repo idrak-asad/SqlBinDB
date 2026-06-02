@@ -201,16 +201,18 @@ bool executeSQL(const char *sql)
             }
 
             // Mühərrikin funksiyasına real verilənlər ötürülür
-            createDb(dbName, dbPsw, reCreate);
+            
 
             if (reCreate)
             {
+                dropDb(dbName, dbPsw);
                 printf("[PROSES İCRA OLUNUR]: '%s' bazası (Parol: '%s') köhnə qeydlərdən təmizlənərək YENİDƏN yaradılır (reCreate = true).\n", dbName, dbPsw);
             }
             else
             {
                 printf("[PROSES İCRA OLUNUR]: '%s' bazası (Parol: '%s') yoxlanılır, yoxdursa sistemdə yaradılır (reCreate = false).\n", dbName, dbPsw);
             }
+            createDb(dbName, dbPsw);
             return true;
         }
         else
@@ -513,7 +515,7 @@ bool executeSQL(const char *sql)
             // İcra olunacaq funksiyaya dəyərləri ötürürük
             printf("[PROSES]: '%s' cədvəli üçün DROP əməliyyatı başladıldı.\n", tableName);
             printf("[REJİM]: hardDrop = %d ", hardDrop);
-
+            
             // Rejimə uyğun konsol mesajı
             switch (hardDrop)
             {
