@@ -9,21 +9,47 @@ const char *skipSpaces(const char *str)
     return str;
 }
 
+// bool matchKeyword(const char **cursor, const char *keyword)
+// {
+//     *cursor = skipSpaces(*cursor);
+//     int len = strlen(keyword);
+//     if (strncasecmp(*cursor, keyword, len) == 0)
+//     {
+//         char nextChar = *(*cursor + len);
+//         if (isalnum((unsigned char)nextChar) || nextChar == '_')
+//         {
+//             return false;
+//         }
+//         *cursor += len;
+//         return true;
+//     }
+//     return false;
+// }
+
 bool matchKeyword(const char **cursor, const char *keyword)
 {
-    *cursor = skipSpaces(*cursor);
+    // Əsl cursoru qorumaq üçün müvəqqəti pointer yaradırıq
+    const char *tempCheck = skipSpaces(*cursor);
     int len = strlen(keyword);
-    if (strncasecmp(*cursor, keyword, len) == 0)
+    
+    // Case-insensitive müqayisə
+    if (strncasecmp(tempCheck, keyword, len) == 0)
     {
-        char nextChar = *(*cursor + len);
+        char nextChar = *(tempCheck + len);
+        
+        // Simvolun sözün davamı (məs: CREATE_date) olub-olmadığını yoxlayırıq
         if (isalnum((unsigned char)nextChar) || nextChar == '_')
         {
-            return false;
+            return false; // Dəyişkən adıdır, açar söz deyil
         }
-        *cursor += len;
+        
+        // YALNIZ hər şey uğurludursa, əsl cursoru yeni mövqeyə çəkirik
+        *cursor = tempCheck + len;
         return true;
     }
-    return false;
+    
+    // Uyğun gəlmədisə, false qayıdır və *cursor əvvəlki yerində dəyişmədən qalır
+    return false; 
 }
 
 bool extractWord(const char **cursor, char *buffer, int maxLen)
@@ -185,14 +211,14 @@ bool executeSQL(const char *sql)
             {
                 printf("[PROSES İCRA OLUNUR]: '%s' bazası (Parol: '%s') yoxlanılır, yoxdursa sistemdə yaradılır (reCreate = false).\n", dbName, dbPsw);
             }
-             return true;
+            return true;
         }
         else
         {
             printf("SİNTAKSİS XƏTASI: Verilənlər bazasının adı tapılmadı.\n");
-             return false;
+            return false;
         }
-       return true;
+        return true;
     }
 
     if (matchKeyword(&cursor, "DROP DATABASE"))
@@ -221,12 +247,12 @@ bool executeSQL(const char *sql)
             dropDb(dbName, dbPsw);
 
             printf("[PROSES İCRA OLUNUR]: '%s' bazası (Parol doğrulaması: '%s'), daxili cədvəlləri və metadatası ilə birlikdə diskdən tamamilə silinir.\n", dbName, dbPsw);
-         return true;
+            return true;
         }
         else
         {
             printf("SİNTAKSİS XƏTASI: Silinəcək verilənlər bazasının adı tapılmadı.\n");
-             return false;
+            return false;
         }
         return true;
     }
@@ -248,6 +274,7 @@ bool executeSQL(const char *sql)
     // ----------------------------------------------------------------
     if (matchKeyword(&cursor, "CREATE TABLE"))
     {
+        printf("Createing Table... \n");
         char tableName[64] = {0};
 
         if (extractWord(&cursor, tableName, sizeof(tableName)))
@@ -461,10 +488,10 @@ bool executeSQL(const char *sql)
     // void parseDropTable(const char *cursor)
     // {
 
-    if (matchKeyword(&cursor, "DROP TABLE")) 
+    if (matchKeyword(&cursor, "DROP TABLE"))
     {
         char tableName[64];
-    int hardDrop = 0; // Susmaya görə: 0 (RESTRICT)
+        int hardDrop = 0; // Susmaya görə: 0 (RESTRICT)
         // Cədvəlin adını götürürük
         if (extractWord(&cursor, tableName, sizeof(tableName)))
         {
@@ -504,11 +531,11 @@ bool executeSQL(const char *sql)
             // Burada sizin dropTable(tableName, hardDrop); funksiyanız çağırılacaq
             return true;
         }
-        else{
+        else
+        {
             printf("SİNTAKSİS XƏTASI: Silinəcək cədvəlin adı tapılmadı.\n");
-             return false;
+            return false;
         }
-            
 
         return true;
     }
@@ -521,11 +548,11 @@ bool executeSQL(const char *sql)
     // {
 
     if (matchKeyword(&cursor, "DELETE FROM"))
-     
+
     {
-           char tableName[64] = {0};
-    int hardDelete = 0; // Susmaya görə: 0 (RESTRICT)
-    char whereCond[256] = {0};
+        char tableName[64] = {0};
+        int hardDelete = 0; // Susmaya görə: 0 (RESTRICT)
+        char whereCond[256] = {0};
         if (extractWord(&cursor, tableName, sizeof(tableName)))
         {
             // 1. WHERE şərtini yoxlayırıq
@@ -668,7 +695,7 @@ bool executeSQL(const char *sql)
             printf("SİNTAKSİS XƏTASI: 'INTO' açar sözü tapılmadı.\n");
             return false;
         }
-         return true;
+        return true;
     }
 
     // ----------------------------------------------------------------
@@ -770,7 +797,7 @@ bool executeSQL(const char *sql)
             printf("SİNTAKSİS XƏTASI: 'FROM' açar sözü tapılmadı.\n");
             return false;
         }
-         return true;
+        return true;
     }
 
     // ----------------------------------------------------------------
@@ -817,12 +844,12 @@ bool executeSQL(const char *sql)
             {
                 printf("[XƏTA]: '%s' bazasına qoşulmaq mümkün olmadı! (Baza mövcut deyil və ya parol yalnışdır).\n", dbName);
             }
-             return true;
+            return true;
         }
         else
         {
             printf("SİNTAKSİS XƏTASI: Qoşulmaq üçün verilənlər bazasının adı tapılmadı.\n");
-             return false;
+            return false;
         }
         return true;
     }
