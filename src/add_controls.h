@@ -179,7 +179,8 @@ void insertIntoIndexFile(const char *idxName, uint32_t keyValue, uint32_t offset
 #include <FS.h>
 #include <LittleFS.h>
 #define PLATFORM_ESP32
-typedef File *FileHandle; // Pointer kimi saxlayaq
+// typedef File *FileHandle; // Pointer kimi saxlayaq
+typedef fs::File FileHandle;
 #else
 #include <stdio.h>
 #include <windows.h>

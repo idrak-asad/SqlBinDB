@@ -203,33 +203,37 @@ void initSystem()
 //     return true;
 // }
 
-
 bool createDb(const char *DbName, const char *DbPsw)
 {
     initSystem();
 
     FILE *f = fopen(MASTER_FILE, "rb+");
-    if (!f) f = fopen(MASTER_FILE, "wb+"); // Əgər fayl yoxdursa yarat
+    if (!f)
+        f = fopen(MASTER_FILE, "wb+"); // Əgər fayl yoxdursa yarat
 
     DBRegistry reg;
     long freeSlotOffset = -1; // Boş yerin yeri
     bool exists = false;
 
     // 1. Qeydiyyat faylını yoxla: Mövcuddursa tap, yoxdursa ilk "silinmiş" yeri tap
-    while (fread(&reg, sizeof(DBRegistry), 1, f)) {
-        if (reg.is_deleted == 0 && strcmp(reg.db_name, DbName) == 0) {
+    while (fread(&reg, sizeof(DBRegistry), 1, f))
+    {
+        if (reg.is_deleted == 0 && strcmp(reg.db_name, DbName) == 0)
+        {
             exists = true; // Baza artıq mövcuddur
             break;
         }
-        if (reg.is_deleted == 1 && freeSlotOffset == -1) {
+        if (reg.is_deleted == 1 && freeSlotOffset == -1)
+        {
             freeSlotOffset = ftell(f) - sizeof(DBRegistry);
         }
     }
 
-    if (exists) {
+    if (exists)
+    {
         printf("XƏTA: '%s' adlı baza artıq mövcuddur.\n", DbName);
         fclose(f);
-        return false; 
+        return false;
     }
 
     // 2. Yeni məlumatı hazırlıq (ya boş slot, ya da fayl sonu)
@@ -238,24 +242,27 @@ bool createDb(const char *DbName, const char *DbPsw)
     strncpy(newDb.db_name, DbName, 17);
     strncpy(newDb.db_password, DbPsw, 17);
 
-    if (freeSlotOffset != -1) {
+    if (freeSlotOffset != -1)
+    {
         fseek(f, freeSlotOffset, SEEK_SET); // Tapılmış boş yerə get
-    } else {
+    }
+    else
+    {
         fseek(f, 0, SEEK_END); // Faylın sonuna get
     }
-    
+
     fwrite(&newDb, sizeof(DBRegistry), 1, f);
     fclose(f);
 
     // 3. Fiziki qovluğu tam silib yenidən yarat (Təmiz başlanğıc)
     char path[256];
     snprintf(path, sizeof(path), "%s/%s", MASTER_DIR, DbName);
-    
+
     // Qovluğu rekursiv silmə funksiyası burada çağırılmalıdır (məsələn: remove_directory(path))
     // Aşağıda sadə silmə və yaratma:
     remove(path); // Qovluq boşdursa silər, dolu olduqda rekursiv silmə lazımdır
     mkdir(path, 0777);
-    
+
     // Alt qovluqları yarat
     snprintf(path, sizeof(path), "%s/%s/tables", MASTER_DIR, DbName);
     mkdir(path, 0777);
@@ -264,10 +271,12 @@ bool createDb(const char *DbName, const char *DbPsw)
 
     // Metadata fayllarını resetlə
     const char *files[] = {"tables.db", "columns.db", "relations.db", "indexes.db"};
-    for(int i=0; i<4; i++) {
+    for (int i = 0; i < 4; i++)
+    {
         snprintf(path, sizeof(path), "%s/%s/metadata/%s", MASTER_DIR, DbName, files[i]);
         FILE *tmp = fopen(path, "wb");
-        if (tmp) fclose(tmp);
+        if (tmp)
+            fclose(tmp);
     }
 
     return true;
@@ -639,45 +648,44 @@ bool helperCheckDbExists(const char *DbName, char *outPsw, long *outOffset)
 #endif
 }
 
-
-
-
-
-
-
-
-
 #include <stdio.h>
 #include <string.h>
 
 #if defined(TARGET_PLATFORM_ESP32)
-    #include <LittleFS.h>
-    bool executeDropSystem(const char *path) {
-        File root = LittleFS.open(path);
-        if (!root || !root.isDirectory()) return;
+#include <LittleFS.h>
+bool executeDropSystem(const char *path)
+{
+    File root = LittleFS.open(path);
+    if (!root || !root.isDirectory())
+        return;
 
-        File file = root.openNextFile();
-        while (file) {
-            String filePath = String(path) + "/" + file.name();
-            if (file.isDirectory()) {
-                executeDropSystem(filePath.c_str());
-            } else {
-                LittleFS.remove(filePath.c_str());
-            }
-            file = root.openNextFile();
+    File file = root.openNextFile();
+    while (file)
+    {
+        String filePath = String(path) + "/" + file.name();
+        if (file.isDirectory())
+        {
+            executeDropSystem(filePath.c_str());
         }
-        LittleFS.rmdir(path);
-        return true;
+        else
+        {
+            LittleFS.remove(filePath.c_str());
+        }
+        file = root.openNextFile();
     }
+    LittleFS.rmdir(path);
+    return true;
+}
 #else
-    // Windows üçün (Windows-da qovluq silmək üçün sistem əmri daha praktikdir)
-    bool executeDropSystem(const char *path) {
-        char command[512];
-        // 'rmdir /s /q' Windows-da qovluğu və içindəkiləri tamamilə silir
-        snprintf(command, sizeof(command), "rmdir /s /q \"%s\"", path);
-        system(command);
-        return true;
-    }
+// Windows üçün (Windows-da qovluq silmək üçün sistem əmri daha praktikdir)
+bool executeDropSystem(const char *path)
+{
+    char command[512];
+    // 'rmdir /s /q' Windows-da qovluğu və içindəkiləri tamamilə silir
+    snprintf(command, sizeof(command), "rmdir /s /q \"%s\"", path);
+    system(command);
+    return true;
+}
 #endif
 
-#endif
+// #endif
