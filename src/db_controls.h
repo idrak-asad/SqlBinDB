@@ -47,9 +47,11 @@ void initSystem()
         return;
     }
     Serial.println("init 1");
+    Serial.println("Mərkəzi qovluq yaradılır: " LFS_DIR);
     // LittleFS obyekti daxili idarəetmədə '/littlefs' prefiksini özü idarə edir
     if (!LittleFS.exists(LFS_DIR))
     {
+        Serial.println("init 1.1");
         if (LittleFS.mkdir(LFS_DIR))
         {
             Serial.println("Mərkəzi qovluq yaradıldı: " LFS_DIR);
