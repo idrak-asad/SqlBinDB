@@ -442,6 +442,7 @@ void fetch(Cursor *c)
 
 Cursor executeSQL(const char *sql)
 {
+    printf("\n[DAXİL OLAN SORĞU]: \"%s\"\n", sql);
     Cursor retrunCursor;
     // Cursor cursor;
     memset(&retrunCursor, 0, sizeof(Cursor)); // Bütün sahələri 0-a bərabər edir

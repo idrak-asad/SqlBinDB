@@ -138,7 +138,7 @@ typedef struct
 
 
 typedef struct {
-    char sql[400];
+    char sql[250];
     char tableName[MAX_NAME_LEN];
     uint32_t *rowIndices; // Tapılan sətirlərin ofsetləri
     uint8_t count;        // Hazırkı batch-də tapılanların sayı
