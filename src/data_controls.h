@@ -910,7 +910,7 @@ uint8_t updateRows(const char *tableName, char *whereColumnsName[], void *whereC
 
     ColumnConfig configs[MAX_COLUMNS + 1];
     // file.read((uint8_t *)configs, sizeof(ColumnConfig) * header.columnCount);
-    FILE_READ(file, configs, sizeof(ColumnConfig) * header.columnCount);
+    DB_FILE_READ(file, configs, sizeof(ColumnConfig) * header.columnCount);
 
     uint8_t rowBuffer[512];
     uint32_t updatedCount = 0;
@@ -921,7 +921,7 @@ uint8_t updateRows(const char *tableName, char *whereColumnsName[], void *whereC
         long currentBlockOffset = startOffset + (r * header.rowSize);
 
         // if (!file.seek(currentBlockOffset, SeekSet))
-        if (!FILE_SEEK(file, currentBlockOffset))
+        if (!DB_FILE_SEEK(file, currentBlockOffset))
             continue;
         // if (file.read(rowBuffer, header.rowSize) != header.rowSize)
         if (myRead(file, rowBuffer, header.rowSize) != header.rowSize)
@@ -989,10 +989,10 @@ uint8_t updateRows(const char *tableName, char *whereColumnsName[], void *whereC
             }
 
             // if (file.seek(currentBlockOffset, SeekSet))
-            if (!FILE_SEEK(file, currentBlockOffset))
+            if (!DB_FILE_SEEK(file, currentBlockOffset))
             {
                 // file.write(rowBuffer, header.rowSize);
-                FILE_WRITE(file, rowBuffer, header.rowSize);
+                DB_FILE_WRITE(file, rowBuffer, header.rowSize);
                 updatedCount++;
             }
         }
@@ -1025,9 +1025,9 @@ uint8_t deleteRowsByIndices(const char *tableName, uint32_t *rowIndices, uint8_t
         return 0;
 
     DBHeader header;
-    if (!READ_HEADER(file, &header))
+    if (!DB_READ_HEADER(file, &header))
     {
-        CLOSE_FILE(file); // Platformadan asılı olmayaraq faylı bağlayır
+        DB_CLOSE_FILE(file); // Platformadan asılı olmayaraq faylı bağlayır
         return 0;         // Xəta kodu qaytar
     }
 
@@ -1062,21 +1062,21 @@ uint8_t deleteRowsByIndices(const char *tableName, uint32_t *rowIndices, uint8_t
         //         LOG_PRINT("[KÖMƏKÇİ] Sıra No [%d] uğurla silindi (Ofset: %ld)\n", targetRow, currentBlockOffset);
         //     }
         // }
-        if (FILE_SEEK(file, currentBlockOffset) == 0) // Əgər uğurlu olarsa (0 qaytararsa)
+        if (DB_FILE_SEEK(file, currentBlockOffset) == 0) // Əgər uğurlu olarsa (0 qaytararsa)
         {
-            size_t written = FILE_WRITE(file, &deleteFlag, 1);
+            size_t written = DB_FILE_WRITE(file, &deleteFlag, 1);
 
             if (written > 0)
             {
                 deletedCount++;
-                FILE_FLUSH(file);
-                LOG_PRINT("[KÖMƏKÇİ] Sıra No [%d] uğurla silindi\n", targetRow);
+                DB_FILE_FLUSH(file);
+                DB_LOG_PRINT("[KÖMƏKÇİ] Sıra No [%d] uğurla silindi\n", targetRow);
             }
         }
         else
         {
             // Əgər seek uğursuz olarsa, bura düşəcək
-            LOG_PRINT("[XƏTA] Seek uğursuz oldu: %d\n", targetRow);
+            DB_LOG_PRINT("[XƏTA] Seek uğursuz oldu: %d\n", targetRow);
         }
     }
 

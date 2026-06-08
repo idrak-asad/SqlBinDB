@@ -1602,8 +1602,8 @@ uint8_t selectAndDelete(const char *tableName, char *whereColumnsName[], void *w
         //         fread(rowBuffer, header.rowSize, 1, file);
         // #endif
         // Sətri oxu
-        FILE_SEEK(file, rowPos);
-        FILE_READ(file, rowBuffer, header.rowSize);
+        DB_FILE_SEEK(file, rowPos);
+        DB_FILE_READ(file, rowBuffer, header.rowSize);
         //
 
         if (rowBuffer[0] == 1)
@@ -1657,9 +1657,9 @@ uint8_t selectAndDelete(const char *tableName, char *whereColumnsName[], void *w
         if (allConditionsMatch || whereCount == 0)
         {
             // Faylda həmin sətrin 0-cı baytına (is_deleted) 1 yazırıq
-            FILE_SEEK(file, rowPos);          // Sətir başına qayıt
-            FILE_WRITE(file, &deleteFlag, 1); // 0-cı baytı 1 et
-            FILE_FLUSH(file);                 // Dəyişikliyi diskə yaz
+            DB_FILE_SEEK(file, rowPos);          // Sətir başına qayıt
+            DB_FILE_WRITE(file, &deleteFlag, 1); // 0-cı baytı 1 et
+            DB_FILE_FLUSH(file);                 // Dəyişikliyi diskə yaz
 
             deletedCount++;
             printf("DEBUG: Row %u deleted.\n", r);
@@ -1845,8 +1845,8 @@ Cursor selectWhereCursor(const char *tableName, char *whereColumnsName[], void *
     for (uint32_t r = 0; r < header.rowCount; r++)
     {
         long rowPos = startPosition + (r * header.rowSize);
-        FILE_SEEK(file, rowPos);
-        FILE_READ(file, rowBuffer, header.rowSize);
+        DB_FILE_SEEK(file, rowPos);
+        DB_FILE_READ(file, rowBuffer, header.rowSize);
 
         // Silinmiş sətirləri (is_deleted == 1) keç
         if (rowBuffer[0] == 1)
