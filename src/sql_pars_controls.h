@@ -283,7 +283,8 @@ void parseWhereClause2(char *whereCond, char *cols[], void *vals[], const char *
         // Bura əlavə funksiya qoymaq olar (isNumeric, isString)
         if (isdigit(valStr[0]))
         {
-            uint32_t *v = malloc(sizeof(uint32_t));
+            // uint32_t *v = malloc(sizeof(uint32_t));
+            uint32_t *v = (uint32_t*)malloc(sizeof(uint32_t));
             *v = atoi(valStr);
             vals[*count] = v;
         }
