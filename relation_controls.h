@@ -9,8 +9,8 @@
 bool createRelation(const char *parentTable, const char *parentCol, const char *childTable, const char *childCol) {
     if (strlen(current_db_path) == 0) return false;
 
-    uint8_t pTableId = getTableIdByName(parentTable);
-    uint8_t cTableId = getTableIdByName(childTable);
+    uint8_t pTableId = getTableIndexByName(parentTable);
+    uint8_t cTableId = getTableIndexByName(childTable);
     uint8_t pColId = getColumnIdByName(pTableId, parentCol);
     uint8_t cColId = getColumnIdByName(cTableId, childCol);
 
