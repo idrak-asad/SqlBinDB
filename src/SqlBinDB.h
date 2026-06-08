@@ -52,7 +52,8 @@ typedef FILE *DBFile;
 
 #if defined(TARGET_PLATFORM_ESP32)
 #define DB_FILE_PTR File
-#define DB_FILE_READ(f, buf, size) f.read(buf, size)
+// #define DB_FILE_READ(f, buf, size) f.read(buf, size)
+#define DB_FILE_READ(f, buf, size) (f).read(reinterpret_cast<uint8_t*>(buf), (size))
 #define DB_FILE_WRITE(f, buf, size) f.write(buf, size)
 #define DB_FILE_SEEK(f, offset) f.seek(offset)
 #define DB_FILE_CLOSE(f) f.close()
