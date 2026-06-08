@@ -1,80 +1,102 @@
 #ifndef SQL_BIN_DB_H
 #define SQL_BIN_DB_H
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+// #include <windows.h>
 
-// #ifndef DB_CONTROLS_H
-// #define DB_CONTROLS_H
 
-
-// #include <ctype.h>
-// #include <direct.h>  // Windows-da mkdir() funksiyası üçün (Linux/ESP32 üçün: <sys/stat.h>)
-
-#include <stdio.h>   // FILE, fopen, fread, fwrite, snprintf üçün mütləqdir
-#include <stdlib.h>  // system(), malloc(), free() üçün
-#include <string.h>  // strcmp(), strncpy(), memset() üçün
-#include <stdbool.h> // bool, true, false tipləri üçün
-// #include <stdint.h>  // uint8_t, uint32_t tipləri üçün
-// #include <direct.h>  // Windows-da _mkdir() funksiyası üçün mütləqdir
-
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <string.h>
-// #include <stdbool.h>
-
-#define TARGET_PLATFORM_ESP32      // <--- ESP32 üçün bunu aktiv et
-// #define TARGET_PLATFORM_WINDOWS   // <--- Windows üçün bunu aktiv et
-// #define TARGET_PLATFORM_LINUX     // <--- Linux üçün bunu aktiv et
 
 // ====================================================================
-// 1. PLATFORMA TƏYİNATI VƏ KİTABXANALARININ ÇAĞIRILMASI
+// 1. PLATFORMANIN AVTOMATİK TƏYİN EDİLMƏSİ VƏ ABSTRAKSİYA
 // ====================================================================
-// Müvafiq kitabxanaların qoşulması
-#if defined(TARGET_PLATFORM_ESP32)
+#if defined(ESP32) || defined(ARDUINO)
+    #define TARGET_PLATFORM_ESP32
     #define PLATFORM_ESP32
     #include "LittleFS.h"
-#elif defined(TARGET_PLATFORM_LINUX)
-    #define PLATFORM_LINUX
-    #include <sys/stat.h>
-    #include <sys/types.h>
-    #include <unistd.h>
-#elif defined(TARGET_PLATFORM_WINDOWS)
+    #include "Arduino.h"
+
+    // ESP32 üçün fayl tipləri və funksiyaları
+    typedef fs::File DBFile;
+    #define DB_SEEK_SET SeekSet
+    #define DB_PRINTF(...) Serial.printf(__VA_ARGS__)
+    #define DB_PRINT(x) Serial.print(x)
+
+#elif defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    #define TARGET_PLATFORM_WINDOWS
     #define PLATFORM_WINDOWS
     #include <direct.h>
     #include <io.h>
     #include <ctype.h>
     #include <stdint.h>
+
+    // Windows üçün fayl tipləri və funksiyaları
+    typedef FILE* DBFile;
+    #define DB_SEEK_SET SEEK_SET
+    #define DB_PRINTF(...) printf(__VA_ARGS__)
+    #define DB_PRINT(x) printf("%s", x)
+
+#elif defined(__linux__)
+    #define TARGET_PLATFORM_LINUX
+    #define PLATFORM_LINUX
+    #include <sys/stat.h>
+    #include <sys/types.h>
+    #include <unistd.h>
+    #include <stdint.h>
+
+    typedef FILE* DBFile;
+    #define DB_SEEK_SET SEEK_SET
+    #define DB_PRINTF(...) printf(__VA_ARGS__)
+    #define DB_PRINT(x) printf("%s", x)
+#endif
+
+
+#if defined(TARGET_PLATFORM_ESP32)
+    #define FILE_PTR File
+    #define FILE_READ(f, buf, size) f.read(buf, size)
+    #define FILE_WRITE(f, buf, size) f.write(buf, size)
+    #define FILE_SEEK(f, offset) f.seek(offset)
+    #define FILE_CLOSE(f) f.close()
+    #define FILE_FLUSH(f) f.flush()
+    #define LOG_PRINT Serial.printf
+#else
+    #define FILE_PTR FILE*
+    #define FILE_READ(f, buf, size) fread(buf, size, 1, f)
+    #define FILE_WRITE(f, buf, size) fwrite(buf, size, 1, f)
+    #define FILE_SEEK(f, offset) (fseek(f, offset, SEEK_SET) == 0)
+    #define FILE_CLOSE(f) fclose(f)
+    #define FILE_FLUSH(f) fflush(f)
+    #define LOG_PRINT printf
 #endif
 
 
 
+#if defined(TARGET_PLATFORM_ESP32)
+    // ESP32 üçün
+    #define CLOSE_FILE(f) (f).close()
+    #define READ_HEADER(f, h) ((f).read((uint8_t *)(h), sizeof(DBHeader)) == sizeof(DBHeader))
+#else
+    // Windows/Standart C üçün
+    #define CLOSE_FILE(f) fclose(f)
+    #define READ_HEADER(f, h) (fread((h), sizeof(DBHeader), 1, (f)) == 1)
+#endif
 
-// #include "lib\add_controls.h"
-// #include "lib\db_controls.h"
-// #include "lib\table_controls.h"
-// #include "lib\data_controls.h"
-// #include "lib\reletion_controls.h"
-// #include "lib\select_controls.h"
-// #include "lib\index_controls.h"
 
-// C++ (Arduino/PlatformIO) mühitində C kodlarının sıradan çıxmaması üçün qoruyucu
+// ====================================================================
+// 2. KİTABXANALARININ ÇAĞIRILMASI
+// ====================================================================
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Qlobal verilənlər bazası yolunun elanı
-// extern char current_db_path[256];
-
-
-
 #include "add_controls.h"
 #include "select_controls.h"
-
-// #include "db_platform.h" // Platforma abstraksiya faylımız
 #include "db_controls.h"
 #include "table_controls.h"
 #include "data_controls.h"
-#include "relation_controls.h" // Sizin fayl adındakı "e" hərfi ilə (reletion)
-
+#include "relation_controls.h"
 #include "index_controls.h"
 #include "sql_pars_controls.h"
 
