@@ -878,6 +878,7 @@ uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereC
     //     //     "foundRowIndices siyahısı boşdur (Heç bir uyğun sətir tapılmadı).");
     //     printf("foundRowIndices siyahısı boşdur (Heç bir uyğun sətir tapılmadı).");
     // }
+    return true;
 }
 
 // ===================================================================
@@ -1028,7 +1029,7 @@ uint8_t deleteRowsByIndices(const char *tableName, uint32_t *rowIndices, uint8_t
     if (!DB_READ_HEADER(file, &header))
     {
         DB_CLOSE_FILE(file); // Platformadan asılı olmayaraq faylı bağlayır
-        return 0;         // Xəta kodu qaytar
+        return 0;            // Xəta kodu qaytar
     }
 
     long startOffset = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
@@ -1135,10 +1136,6 @@ bool readRowByIndex(const char *tableName, uint32_t rowIndex, uint8_t *outRowBuf
     // (İstəyə görə burada configs oxunub sütun tipinə görə print də edilə bilər)
     return true;
 }
-
-
-
-
 
 int insertRowsWithDelete(const char *tableName, const char *colsStr, const char *valsStr, int colCount)
 {
@@ -1267,12 +1264,12 @@ int insertRowsWithDelete(const char *tableName, const char *colsStr, const char 
     {
         fseek(file, startDataPos + (r * header.rowSize), SEEK_SET);
         fread(&statusByte, 1, 1, file);
-        
+
         if (statusByte == 1) // Silinmiş sətir tapıldı
         {
             targetRowIndex = r;
             foundDeletedRow = true;
-            break; 
+            break;
         }
     }
     // Əgər silinmiş sətir tapılmadısa, sonuncu sıranı götür
@@ -1299,9 +1296,9 @@ int insertRowsWithDelete(const char *tableName, const char *colsStr, const char 
     }
 
     fclose(file);
-    printf("[UĞURLU]: Məlumat %d-ci sıraya (deleted reuse: %s) yazıldı.\n", 
+    printf("[UĞURLU]: Məlumat %d-ci sıraya (deleted reuse: %s) yazıldı.\n",
            targetRowIndex, foundDeletedRow ? "BƏLİ" : "XEYR");
-           
+
     return targetRowIndex;
 }
 
