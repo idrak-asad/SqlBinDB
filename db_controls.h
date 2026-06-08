@@ -657,7 +657,7 @@ bool executeDropSystem(const char *path)
 {
     File root = LittleFS.open(path);
     if (!root || !root.isDirectory())
-        return;
+        return false;
 
     File file = root.openNextFile();
     while (file)
@@ -688,4 +688,4 @@ bool executeDropSystem(const char *path)
 }
 #endif
 
-// #endif
+#endif

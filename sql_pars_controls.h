@@ -283,7 +283,8 @@ void parseWhereClause2(char *whereCond, char *cols[], void *vals[], const char *
         // Bura əlavə funksiya qoymaq olar (isNumeric, isString)
         if (isdigit(valStr[0]))
         {
-            uint32_t *v = malloc(sizeof(uint32_t));
+            // uint32_t *v = malloc(sizeof(uint32_t));
+            uint32_t *v = (uint32_t*)malloc(sizeof(uint32_t));
             *v = atoi(valStr);
             vals[*count] = v;
         }
@@ -441,6 +442,7 @@ void fetch(Cursor *c)
 
 Cursor executeSQL(const char *sql)
 {
+    printf("\n[DAXİL OLAN SORĞU]: \"%s\"\n", sql);
     Cursor retrunCursor;
     // Cursor cursor;
     memset(&retrunCursor, 0, sizeof(Cursor)); // Bütün sahələri 0-a bərabər edir

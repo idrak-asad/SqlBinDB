@@ -138,7 +138,7 @@ typedef struct
 
 
 typedef struct {
-    char sql[400];
+    char sql[250];
     char tableName[MAX_NAME_LEN];
     uint32_t *rowIndices; // Tapılan sətirlərin ofsetləri
     uint8_t count;        // Hazırkı batch-də tapılanların sayı
@@ -192,7 +192,7 @@ typedef FILE *FileHandle;
 size_t myRead(FileHandle f, void *buffer, size_t size)
 {
 #ifdef PLATFORM_ESP32
-    return f->read((uint8_t *)buffer, size);
+    return f.read((uint8_t *)buffer, size);
 #else
     return fread(buffer, 1, size, f);
 #endif
@@ -202,7 +202,7 @@ size_t myRead(FileHandle f, void *buffer, size_t size)
 bool mySeek(FileHandle f, long offset)
 {
 #ifdef PLATFORM_ESP32
-    return f->seek(offset);
+    return f.seek(offset);
 #else
     return fseek(f, offset, SEEK_SET) == 0;
 #endif
@@ -211,7 +211,7 @@ bool mySeek(FileHandle f, long offset)
 void myClose(FileHandle f)
 {
 #ifdef PLATFORM_ESP32
-    f->close();
+    f.close();
 #else
     if (f != NULL) {
         fclose(f);

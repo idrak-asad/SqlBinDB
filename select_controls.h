@@ -23,22 +23,22 @@ void selectJoinData(const char *parentTable, const char *childTable,
                     const char *parentCol, const char *childCol);
 
 // 4. HƏM JOIN, HƏM WHERE: Kombinasiya edilmiş funksiya
-void selectJoinWhereData(const char *parentTable, const char *childTable,
-                         const char *parentCol, const char *childCol,
-                         const char *whereColumnsName[], void *whereColumnsData[],
-                         const char *whereOperators[], int conditionCount);
+// void selectJoinWhereData(const char *parentTable, const char *childTable,
+//                          const char *parentCol, const char *childCol,
+//                          const char *whereColumnsName[], void *whereColumnsData[],
+//                          const char *whereOperators[], int conditionCount);
 
-void selectJoinWhereData(const char *parentTable, const char *childTable,
-                         const char *parentCol, const char *childCol,
-                         const char *whereColumnsName[], void *whereColumnsData[],
-                         const char *whereOperators[], int conditionCount)
-{
-}
-void parseJoinCondition(char *joinCond[], char *parentCol[], char *childCol[]);
+// void selectJoinWhereData(const char *parentTable, const char *childTable,
+//                          const char *parentCol, const char *childCol,
+//                          const char *whereColumnsName[], void *whereColumnsData[],
+//                          const char *whereOperators[], int conditionCount)
+// {
+// }
+// void parseJoinCondition(char *joinCond[], char *parentCol[], char *childCol[]);
 
-void parseJoinCondition(char *joinCond[], char *parentCol[], char *childCol[])
-{
-}
+// void parseJoinCondition(char *joinCond[], char *parentCol[], char *childCol[])
+// {
+// }
 
 // void selectLineByLine(const char *tableName, int id)
 // {
