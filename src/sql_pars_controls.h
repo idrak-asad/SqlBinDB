@@ -442,7 +442,7 @@ void fetch(Cursor *c)
 
 Cursor executeSQL(const char *sql)
 {
-    printf("\n[DAXİL OLAN SORĞU]: \"%s\"\n", sql);
+    // printf("\n[DAXİL OLAN SORĞU]: \"%s\"\n", sql);
     Cursor retrunCursor;
     // Cursor cursor;
     memset(&retrunCursor, 0, sizeof(Cursor)); // Bütün sahələri 0-a bərabər edir
@@ -488,12 +488,14 @@ Cursor executeSQL(const char *sql)
     // ----------------------------------------------------------------
     if (matchKeyword(&cursor, "CREATE DATABASE"))
     {
+        printf("CReatin db.\n");
         char dbName[64] = {0};
         char dbPsw[32] = {0}; // Parolu saxlamaq üçün bufer
         bool reCreate = false;
 
         if (extractWord(&cursor, dbName, sizeof(dbName)))
         {
+            printf("CReatin db ---.\n");
             // RECREATE və PASSWORD açar sözlərini istənilən ardıcıllıqla və təhlükəsiz oxumaq üçün dövr
             while (true)
             {
@@ -519,11 +521,11 @@ Cursor executeSQL(const char *sql)
             if (reCreate)
             {
                 dropDb(dbName, dbPsw);
-                printf("[PROSES İCRA OLUNUR]: '%s' bazası (Parol: '%s') köhnə qeydlərdən təmizlənərək YENİDƏN yaradılır (reCreate = true).\n", dbName, dbPsw);
+                printf("[PROSES İCRA OLUNUR]: '%s' bazası (Parol: '%s') (reCreate = true).\n", dbName, dbPsw);
             }
             else
             {
-                printf("[PROSES İCRA OLUNUR]: '%s' bazası (Parol: '%s') yoxlanılır, yoxdursa sistemdə yaradılır (reCreate = false).\n", dbName, dbPsw);
+                printf("[PROSES İCRA OLUNUR]: '%s' bazası (Parol: '%s') (reCreate = false).\n", dbName, dbPsw);
             }
             createDb(dbName, dbPsw);
             return retrunCursor;
