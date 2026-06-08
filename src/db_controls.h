@@ -59,7 +59,7 @@ void initSystem()
             Serial.println("XƏTA: Qovluq yaradıla bilmədi!");
         }
     }
-    Serial.println("init 1");
+    Serial.println("init 2");
 
     // Master binar qeydiyyat faylı yoxdursa, sıfırdan binar rejimdə yaradaq
     FILE *fCheck = fopen(MASTER_FILE, "rb");
@@ -76,7 +76,6 @@ void initSystem()
             Serial.println("XƏTA: Master verilənlər bazası binar faylı yaradıla bilmədi!");
         }
     }
-    Serial.println("init 1");
     else
     {
         fclose(fCheck);
@@ -208,15 +207,15 @@ void initSystem()
 bool createDb(const char *DbName, const char *DbPsw)
 {
     initSystem();
-
+Serial.println("createDb 1");
     FILE *f = fopen(MASTER_FILE, "rb+");
     if (!f)
         f = fopen(MASTER_FILE, "wb+"); // Əgər fayl yoxdursa yarat
-
+Serial.println("createDb 2");
     DBRegistry reg;
     long freeSlotOffset = -1; // Boş yerin yeri
     bool exists = false;
-
+Serial.println("createDb 3");
     // 1. Qeydiyyat faylını yoxla: Mövcuddursa tap, yoxdursa ilk "silinmiş" yeri tap
     while (fread(&reg, sizeof(DBRegistry), 1, f))
     {
@@ -230,20 +229,20 @@ bool createDb(const char *DbName, const char *DbPsw)
             freeSlotOffset = ftell(f) - sizeof(DBRegistry);
         }
     }
-
+Serial.println("createDb 4");
     if (exists)
     {
         printf("XƏTA: '%s' adlı baza artıq mövcuddur.\n", DbName);
         fclose(f);
         return false;
     }
-
+Serial.println("createDb 5");
     // 2. Yeni məlumatı hazırlıq (ya boş slot, ya da fayl sonu)
     DBRegistry newDb = {0};
     newDb.is_deleted = 0;
     strncpy(newDb.db_name, DbName, 17);
     strncpy(newDb.db_password, DbPsw, 17);
-
+Serial.println("createDb 6");
     if (freeSlotOffset != -1)
     {
         fseek(f, freeSlotOffset, SEEK_SET); // Tapılmış boş yerə get
@@ -252,7 +251,7 @@ bool createDb(const char *DbName, const char *DbPsw)
     {
         fseek(f, 0, SEEK_END); // Faylın sonuna get
     }
-
+Serial.println("createDb 7");
     fwrite(&newDb, sizeof(DBRegistry), 1, f);
     fclose(f);
 
