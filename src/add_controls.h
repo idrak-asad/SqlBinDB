@@ -31,23 +31,10 @@
 #define TYPE_TIMESTAMP 8   // 4 bayt Unix Epoch saniyəsi (uint32_t)
 #define TYPE_VARCHAR2 9    // Dəyişkən sətir üçün bloq pointeri (4 bayt offset)
 
-// // Tip ID-ləri
-// #define TYPE_INT          1
-// #define TYPE_UINT32       2
-// #define TYPE_UINT8        3
-// #define TYPE_CHAR         4
-// #define TYPE_CHAR2        5
-// #define TYPE_FLOAT        6
-// #define TYPE_FIXED_POINT  7
-// #define TYPE_DATETIME     8
-// #define TYPE_VARCHAR2     9
-// #define TYPE_CHAR_N       10
+
 
 char current_db_path[128] = "";
 char current_db_name[18] = "";
-
-
-
 
 // extern char current_db_path[128];
 // extern char current_db_name[18];
@@ -60,100 +47,18 @@ char current_db_name[18] = "";
 #pragma pack(push, 1)
 // .db faylının ən başında duracaq idarəetmə bloku (Metadata)
 
-// typedef struct {
-//     char columnName[MAX_NAME_LEN];
-//     char columnType[16];
-//     uint16_t byteSize;
-// } ColumnConfig;
-
-// typedef struct {
-//     char columnName[32]; // Sütunun adı
-//     char columnType[16]; // SÜTUNUN TİPİ (Bura mütləq columnType olmalıdır!)
-//     uint16_t byteSize;   // Bayt ölçüsü
-// } ColumnConfig;
-
-// typedef struct {
-//     uint32_t signature;       // "SQLB"
-//     char tableName[32];
-//     uint32_t columnCount;
-//     uint32_t rowCount;        // Hazırda bazada olan real sətir sayısı (maxRows-u keçə bilməz)
-//     uint32_t rowSize;
-//     uint32_t maxRows;         // MƏKSİMUM SƏTİR LİMİTİ (Yeni)
-//     uint32_t nextRowIndex;    // NÖVBƏTİ YAZILACAQ İNDEKS (0-dan maxRows-1 kimi fırlanır) (Yeni)
-// } DBHeader;
-
-// metadata/columns.db üçün sıxılmış sətir strukturu (Tam 37 Byte)
-// typedef struct {
-//     uint8_t is_deleted;
-//     uint8_t table_id;
-//     char column_name[32];
-//     uint8_t type_id;
-//     uint8_t type_size;
-//     uint8_t constraints;
-// } CompactColumnMeta;
 
 // metadata/tables.db üçün də limiti qeyd edirik (Cəmi 39 byte olur)
-typedef struct {
+typedef struct
+{
     uint8_t is_deleted;
-    uint8_t table_id;
+    // uint8_t table_id;
     char table_name[32];
     uint8_t col_count;
-    uint32_t max_rows;    // Yeni
+    uint32_t max_rows; // Yeni
 } CompactTableMeta;
 
-// typedef struct {
-//     uint8_t is_deleted;       // Soft-delete (1 byte)
-//     uint8_t parent_table_id;  // Əsas cədvəl (Məsələn: 'users' cədvəlinin ID-si) (1 byte)
-//     uint8_t parent_col_id;    // Əsas sütun (Məsələn: 'id' sütununu ID-si) (1 byte)
-//     uint8_t child_table_id;   // Bağlanan cədvəl (Məsələn: 'orders' cədvəlinin ID-si) (1 byte)
-//     uint8_t child_col_id;     // Bağlanan sütun (Məsələn: 'user_id' sütunun ID-si) (1 byte)
-// } CompactRelation;
 
-// typedef struct {
-//     uint8_t is_deleted;
-//     uint8_t parent_table_id;
-//     uint8_t parent_col_id;
-//     uint8_t child_table_id;
-//     uint8_t child_col_id;
-// } CompactRelation;
-
-// // Cəmi 5 Byte! Ultra-sıxılmış əlaqə strukturu
-// typedef struct {
-//     uint8_t is_deleted;       // 1 byte (Soft delete üçün)
-//     uint8_t parent_table_id;  // 1 byte (Əsas cədvəl, məs: users)
-//     uint8_t parent_col_id;    // 1 byte (Əsas sütun, məs: id)
-//     uint8_t child_table_id;   // 1 byte (Bağlı cədvəl, məs: devices)
-//     uint8_t child_col_id;     // 1 byte (Bağlı sütun, məs: user_id)
-// } CompactRelation;
-
-// #pragma pack(push, 1)
-// typedef struct {
-//     uint8_t is_deleted;
-//     char db_name[18];
-//     char db_psw[18];
-// } DBRegistry;
-// #pragma pack(pop)
-
-// Mərkəzi indeks qeydiyyat strukturu (metadata/indexes.db)
-// typedef struct {
-//     uint8_t is_deleted;
-//     uint8_t table_id;
-//     uint8_t column_id;
-//     char index_name[32];
-// } IndexMeta;
-
-// Fiziki indeks qeydi (.idx faylının daxili forması)
-// typedef struct {
-//     uint32_t data_value; // İndekslənən uint32_t dəyər (Məs: id)
-//     uint32_t file_pos;   // Sətrin ana .db faylındakı fiziki bayt ünvanı
-// } IndexEntry;
-
-// typedef struct
-// {
-//     uint8_t is_deleted;
-//     uint8_t table_id;
-//     char table_name[MAX_NAME_LEN];
-// } CompactTableMeta;
 
 typedef struct
 {
@@ -182,44 +87,20 @@ typedef struct
     uint8_t child_col_id;
 } CompactRelation;
 
-// typedef struct
-// {
-//     uint32_t maxRows;
-//     uint32_t rowCount;
-//     uint16_t rowSize;
-//     uint8_t columnCount;
-//     uint32_t last_inserted_id; // AUTO_INCREMENT izləmək üçün yeni bölmə
-// } DBHeader;
 
 
-typedef struct {
-    uint32_t signature;       // "SQLB"
+typedef struct
+{
+    uint32_t signature; // "SQLB"
     char tableName[32];
     uint32_t columnCount;
-    uint32_t rowCount;        // Hazırda bazada olan real sətir sayısı (maxRows-u keçə bilməz)
+    uint32_t rowCount; // Hazırda bazada olan real sətir sayısı (maxRows-u keçə bilməz)
     uint32_t rowSize;
-    uint32_t maxRows;         // MƏKSİMUM SƏTİR LİMİTİ (Yeni)
-    uint32_t nextRowIndex;    // NÖVBƏTİ YAZILACAQ İNDEKS (0-dan maxRows-1 kimi fırlanır) (Yeni)
-uint32_t last_inserted_id; // AUTO_INCREMENT izləmək üçün yeni bölmə
+    uint32_t maxRows;          // MƏKSİMUM SƏTİR LİMİTİ (Yeni)
+    uint32_t nextRowIndex;     // NÖVBƏTİ YAZILACAQ İNDEKS (0-dan maxRows-1 kimi fırlanır) (Yeni)
+    uint32_t last_inserted_id; // AUTO_INCREMENT izləmək üçün yeni bölmə
 } DBHeader;
 
-
-// typedef struct {
-//     uint32_t rowSize;          // Hər sətirin ümumi ölçüsü
-//     uint32_t rowCount;         // Mövcud sətir sayı
-//     uint32_t maxRows;          // Dairəvi (Circular) sistem üçün maksimum limit
-//     uint16_t columnCount;      // Sütun sayı
-//     uint32_t last_inserted_id; // Auto increment üçün son ID
-// } DBHeader;
-
-
-// typedef struct {
-    
-//     uint32_t rowCount;        // Hazırda bazada olan real sətir sayısı (maxRows-u keçə bilməz)
-//     uint32_t maxRows;         // MƏKSİMUM SƏTİR LİMİTİ (Yeni)
-//     uint32_t nextRowIndex;    // NÖVBƏTİ YAZILACAQ İNDEKS (0-dan maxRows-1 kimi fırlanır) (Yeni)
-// uint32_t last_inserted_id; // AUTO_INCREMENT izləmək üçün yeni bölmə
-// } DBHeader;
 
 typedef struct
 {
@@ -255,70 +136,157 @@ typedef struct
     char db_password[18];
 } DBRegistry;
 
-#pragma pack(pop)
 
+typedef struct {
+    char sql[400];
+    char tableName[MAX_NAME_LEN];
+    uint32_t *rowIndices; // Tapılan sətirlərin ofsetləri
+    uint8_t count;        // Hazırkı batch-də tapılanların sayı
+    uint32_t lastOffset;  // Axtarışın qaldığı yer (fayl ofseti)
+    bool isFinished;      // Bütün axtarış bitdimi?
+} Cursor;
+
+
+typedef struct {
+    char columnName[32];
+    uint32_t intValue;
+    float floatValue;
+    char stringValue[64];
+    // Digər tipləri də əlavə edə bilərsiniz
+} Field;
+
+typedef struct {
+    Field fields[16]; // Məsələn, 16 sütunluq bir sətir
+    int fieldCount;
+} DataRow;
+
+
+#pragma pack(pop)
 
 int getColumnIndexInConfig(ColumnConfig configs[], int colCount, const char *colName);
 int getColumnOffsetInRow(ColumnConfig configs[], int colCount, int colIdx);
-bool helperCheckCondition(uint8_t *dataPtr, uint8_t dataType, void *whereData, const char *op);
-uint8_t getTableIdByName(const char *tableName);
-bool getTableNameById(uint8_t tableId, char *outName);
+// bool helperCheckCondition(uint8_t *dataPtr, uint8_t dataType, void *whereData, const char *op);
+bool helperCheckCondition(void *colData, int typeID, void *queryData, const char *op);
+// uint8_t getTableIdByName(const char *tableName);
+bool getTableNameByIndex(uint8_t tableId, char *outName);
 bool getColumnNameById(uint8_t tableId, uint8_t colId, char *outColName);
 
 // uint8_t calculate_type_size(const char *typeStr);
 uint8_t getTypeId(char *typeStr);
 void insertIntoIndexFile(const char *idxName, uint32_t keyValue, uint32_t offsetValue);
 
-// ===================================================================
-// KANARDA YARADILMAYAN NÜVƏ FUNKSİYALARININ İCRA KODLARI (GÖVDƏLƏRİ)
-// ===================================================================
+#if defined(ESP32) || defined(ARDUINO)
+#include <FS.h>
+#include <LittleFS.h>
+#define PLATFORM_ESP32
+typedef File *FileHandle; // Pointer kimi saxlayaq
+#else
+#include <stdio.h>
+#include <windows.h>
+#define PLATFORM_WIN
+typedef FILE *FileHandle;
+#define delay(ms) Sleep(ms)
+#endif
 
+size_t myRead(FileHandle f, void *buffer, size_t size)
+{
+#ifdef PLATFORM_ESP32
+    return f->read((uint8_t *)buffer, size);
+#else
+    return fread(buffer, 1, size, f);
+#endif
+}
 
-File openTable(const char *tableName, const char *openType){
-    // if (strlen(current_db_path) == 0) return file;
+// Seek funksiyası (Universal)
+bool mySeek(FileHandle f, long offset)
+{
+#ifdef PLATFORM_ESP32
+    return f->seek(offset);
+#else
+    return fseek(f, offset, SEEK_SET) == 0;
+#endif
+}
 
-    char tableFilePath[256];
-    
-    // LITTLEFS ÜÇÜN YOLUN DÜZƏLDİLMƏSİ (Kritik Hissə):
-    // Əgər current_db_path "/littlefs" ilə başlayırsa, LittleFS üçün o hissəni silirik
-    const char *cleanPath = current_db_path;
-    if (strncmp(current_db_path, "/littlefs", 9) == 0) {
-        cleanPath = current_db_path + 9; // "/littlefs" sözünü ötürür, məsələn: "/sqlBinDB/my_DB" olur
+void myClose(FileHandle f)
+{
+#ifdef PLATFORM_ESP32
+    f->close();
+#else
+    if (f != NULL) {
+        fclose(f);
     }
-
-    snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", cleanPath, tableName);
-
-    Serial.print("[Diaqnostika] LittleFS ile acilmaga calisilan real yol: ");
-    Serial.println(tableFilePath);
-
-    // Faylı açmağa çalışırıq
-    File file = LittleFS.open(tableFilePath, openType);
-    
-    if (!file) {
-        Serial.println("[XƏTA] 'r+' rejimində tapılmadı, 'r' (oxuma) rejimi yoxlanılır...");
-        file = LittleFS.open(tableFilePath, "r");
-    }
-
-    if (!file) {
-        Serial.println("[KRİTİK XƏTA] LittleFS bu faylı heç bir rejimdə aça bilmədi!");
-        
-        // Səbəbi anlamaq üçün diski yoxlayaq:
-        if (!LittleFS.exists(tableFilePath)) {
-            Serial.println("-> SƏBƏB: Fayl bu adda və bu yolda diskdə FİZİKİ OLARAQ YOXDUR!");
-        } else {
-            Serial.println("-> SƏBƏB: Fayl var, lFS icazə vermir və ya başqa funksiya tərəfindən açıq saxlanılıb (Kilitlənib)!");
-        }
-        return file;
-    }
-    return file; // 🌟 Açılan fayl obyektini geri qaytarırıq!
+#endif
 }
 
 
 
+#if defined(TARGET_PLATFORM_ESP32)
+// ==================== ESP32 / ARDUINO REJİMİ ====================
+File openTable(const char *tableName, const char *openType)
+{
+    char tableFilePath[256];
+    const char *cleanPath = current_db_path;
+    if (strncmp(current_db_path, "/littlefs", 9) == 0)
+    {
+        cleanPath = current_db_path + 9;
+    }
+
+    snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", cleanPath, tableName);
+    Serial.print("[Diaqnostika] LittleFS ile acilmaga calisilan real yol: ");
+    Serial.println(tableFilePath);
+
+    File file = LittleFS.open(tableFilePath, openType);
+    if (!file)
+    {
+        Serial.println("[XƏTA] 'r+' rejimində tapılmadı, 'r' (oxuma) rejimi yoxlanılır...");
+        file = LittleFS.open(tableFilePath, "r");
+    }
+    return file;
+}
+#else
+// ==================== PC (WINDOWS / LINUX) REJİMİ ====================
+FILE *openTable(const char *tableName, const char *openType)
+{
+    char tableFilePath[256];
+    const char *cleanPath = current_db_path;
+    if (strncmp(current_db_path, "/littlefs", 9) == 0)
+    {
+        cleanPath = current_db_path + 9;
+    }
+
+    snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", cleanPath, tableName);
+    printf("[Diaqnostika] PC ile acilmaga calisilan real yol: %s\n", tableFilePath);
+
+    // Windows standard C-də binar fayllar mütləq "rb", "wb" və ya "rb+" rejimləri ilə açılmalıdır
+    char mode[8];
+    strncpy(mode, openType, sizeof(mode) - 1);
+    if (strchr(mode, 'b') == NULL)
+    {
+        strncat(mode, "b", sizeof(mode) - strlen(mode) - 1);
+    }
+
+    FILE *file = fopen(tableFilePath, mode);
+    if (!file)
+    {
+        printf("[XƏTA] '%s' rejimində tapılmadı, 'rb' (oxuma) rejimi yoxlanılır...\n", mode);
+        file = fopen(tableFilePath, "rb");
+    }
+
+    if (!file)
+    {
+        printf("[KRİTİK XƏTA] Standard C bu faylı heç bir rejimdə aça bilmədi: %s\n", tableFilePath);
+    }
+    return file;
+}
+#endif
+
 // 1. Sütun adına görə onun konfiqurasiya massivindəki indeksini tapır
-int getColumnIndexInConfig(ColumnConfig configs[], int colCount, const char *colName) {
-    for (int i = 0; i < colCount; i++) {
-        if (strcmp(configs[i].columnName, colName) == 0) {
+int getColumnIndexInConfig(ColumnConfig configs[], int colCount, const char *colName)
+{
+    for (int i = 0; i < colCount; i++)
+    {
+        if (strcmp(configs[i].columnName, colName) == 0)
+        {
             return i;
         }
     }
@@ -326,58 +294,135 @@ int getColumnIndexInConfig(ColumnConfig configs[], int colCount, const char *col
 }
 
 // 2. Sütunun binar sətir daxilində neçənci baytdan (offset) başladığını hesablayır
-int getColumnOffsetInRow(ColumnConfig configs[], int colCount, int colIdx) {
+int getColumnOffsetInRow(ColumnConfig configs[], int colCount, int colIdx)
+{
     // İlk bayt silinmə (is_deleted) bayrağı üçün ayrılır (bizim kodda rowBuffer[0])
-    int offset = 1; 
-    for (int i = 0; i < colIdx; i++) {
+    int offset = 1;
+    for (int i = 0; i < colIdx; i++)
+    {
         offset += configs[i].dataSize;
     }
     return offset;
 }
 
-// 3. Verilən operatora və tipə görə şərtin ödənilib-ödənilmədiyini yoxlayır
-bool helperCheckCondition(uint8_t *dataPtr, uint8_t dataType, void *whereData, const char *op) {
-    if (dataPtr == NULL || whereData == NULL || op == NULL) return false;
 
-    if (dataType == TYPE_INT) {
-        int32_t valInDb = *(int32_t *)dataPtr;
-        int32_t valWhere = *(int32_t *)whereData;
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
 
-        if (strcmp(op, "=") == 0)   return valInDb == valWhere;
-        if (strcmp(op, "!=") == 0)  return valInDb != valWhere;
-        if (strcmp(op, ">") == 0)   return valInDb > valWhere;
-        if (strcmp(op, "<") == 0)   return valInDb < valWhere;
-        if (strcmp(op, ">=") == 0)  return valInDb >= valWhere;
-        if (strcmp(op, "<=") == 0)  return valInDb <= valWhere;
-    } 
-    else if (dataType == TYPE_UINT32) {
-        uint32_t valInDb = *(uint32_t *)dataPtr;
-        uint32_t valWhere = *(uint32_t *)whereData;
-
-        if (strcmp(op, "=") == 0)   return valInDb == valWhere;
-        if (strcmp(op, "!=") == 0)  return valInDb != valWhere;
-        if (strcmp(op, ">") == 0)   return valInDb > valWhere;
-        if (strcmp(op, "<") == 0)   return valInDb < valWhere;
-        if (strcmp(op, ">=") == 0)  return valInDb >= valWhere;
-        if (strcmp(op, "<=") == 0)  return valInDb <= valWhere;
-    } 
-    else if (dataType == TYPE_FLOAT) {
-        float valInDb = *(float *)dataPtr;
-        float valWhere = *(float *)whereData;
-
-        if (strcmp(op, "=") == 0)   return abs(valInDb - valWhere) < 0.0001; // Float bərabərlik toleransı
-        if (strcmp(op, "!=") == 0)  return abs(valInDb - valWhere) >= 0.0001;
-        if (strcmp(op, ">") == 0)   return valInDb > valWhere;
-        if (strcmp(op, "<") == 0)   return valInDb < valWhere;
-        if (strcmp(op, ">=") == 0)  return valInDb >= valWhere;
-        if (strcmp(op, "<=") == 0)  return valInDb <= valWhere;
-    } 
-    else if (dataType == TYPE_CHAR2) {
-        // Mətn tipləri üçün əsasən "=" və "!=" müqayisələri keçərlidir
-        if (strcmp(op, "=") == 0)   return strcmp((char *)dataPtr, (char *)whereData) == 0;
-        if (strcmp(op, "!=") == 0)  return strcmp((char *)dataPtr, (char *)whereData) != 0;
+bool checkCondition(uint8_t typeID, uint8_t dataSize, uint8_t *dbFieldPtr, void *userValPtr, const char *op)
+{
+    printf("checkCondition running: \n");
+    if (userValPtr == NULL)
+        return false;
+    // printf("num: %d\n", 2);
+    bool result = false;
+    if (typeID == TYPE_CHAR2)
+    {
+        // printf("num: %d\n", 3);
+        char dbTemp[64] = {0};
+        memcpy(dbTemp, dbFieldPtr, dataSize);
+        // if (strcmp(op, "=") == 0)
+        return (strcmp(dbTemp, (const char *)userValPtr) == 0);
+        // printf("num: %d\n", 4);
     }
 
+    else if (typeID == TYPE_INT || typeID == TYPE_UINT32)
+    {
+        // printf("num: %d\n", 5);
+        uint32_t dbVal = 0;
+        // if (typeID == TYPE_INT || typeID == TYPE_UINT32)
+        // {
+        memcpy(&dbVal, dbFieldPtr, 4);
+        // }
+
+        // 2. İstifadəçidən gələn məlumatı (userVal) çeviririk
+        // Əgər gələn məlumat string-dirsə, onu ədədə çeviririk
+        uint32_t userVal = atoi((const char *)userValPtr);
+        // if (strcmp(op, "=") == 0) return (dbVal == userVal);
+        // if (strcmp(op, ">") == 0) return (dbVal > userVal);
+        // if (strcmp(op, "<") == 0) return (dbVal < userVal);
+        if (strcmp(op, "=") == 0)
+            result = (dbVal == userVal);
+        else if (strcmp(op, ">") == 0)
+            result = (dbVal > userVal);
+        else if (strcmp(op, "<") == 0)
+            result = (dbVal < userVal);
+
+        printf("DEBUG: DB Val: %u, Op: %s, User Val: %u | Result: %s\n",
+               dbVal, op, userVal, result ? "TRUE" : "FALSE");
+        return result;
+    }
+    else if (typeID == TYPE_UINT8)
+    {
+        uint8_t userVal = atoi((const char *)userValPtr);
+        // printf("num: %d\n", 7);
+        uint8_t dbVal = *dbFieldPtr;
+        // uint8_t userVal = *(uint8_t *)userValPtr;
+        if (strcmp(op, "=") == 0)
+            return (dbVal == userVal);
+        // printf("num: %d\n", 8);
+    }
+
+    return false;
+}
+
+bool helperCheckCondition(void *colData, int typeID, void *queryData, const char *op)
+{
+    char *valStr = (char *)queryData; // Sorğudan gələn string ("9")
+
+    // Məlumatı tipə görə oxuyuruq
+    // printf("tipID: %d\n", typeID);
+    switch (typeID)
+    {
+    case 1: // Məsələn: INT (4 bayt)
+    {
+        int dbVal = *(int *)colData;
+        int qVal = atoi(valStr);
+
+        // Əgər "9" sorğusu gəlibsə və atoi("9") 0 qayıdırsa,
+        // string-in həqiqətən ədəd olduğunu yoxlayırıq
+        if (qVal == 0 && strcmp(valStr, "0") != 0)
+        {
+            printf("[XƏTA]: '%s' dəyəri tam ədəd tipinə çevrilə bilmədi!\n", valStr);
+            return false;
+        }
+        printf(": data type 1: %d =  %d\n", dbVal, qVal);
+        if (strcmp(op, "=") == 0)
+            return dbVal == qVal;
+        if (strcmp(op, ">") == 0)
+            return dbVal > qVal;
+        if (strcmp(op, "<") == 0)
+            return dbVal < qVal;
+        break;
+    }
+    case 3: // uint8_t (Sizin qeyd etdiyiniz tip)
+    {
+        uint8_t dbVal = *(uint8_t *)colData;
+        uint8_t qVal = (uint8_t)atoi(valStr);
+        printf(": data type3: %d =  %d\n", dbVal, qVal);
+        if (strcmp(op, "=") == 0)
+            return dbVal == qVal;
+        if (strcmp(op, ">") == 0)
+            return dbVal > qVal;
+        if (strcmp(op, "<") == 0)
+            return dbVal < qVal;
+
+        // return true;
+    }
+    case 4: // Məsələn: STRING (Char array)
+    {
+        // printf(": data type 4: %s =  %s\n", dbVal, valStr);
+        char *dbVal = (char *)colData;
+        if (strcmp(op, "=") == 0)
+            return strcmp(dbVal, valStr) == 0;
+        break;
+    }
+    default:
+        printf("[XƏTA]: Naməlum tipID: %d\n", typeID);
+        return false;
+    }
     return false;
 }
 
@@ -575,25 +620,31 @@ bool compareValues(void *dbValue, void *checkValue, const char *op, uint8_t data
 }
 
 // Cədvəlin adından onun table_id-sini qaytarır
-uint8_t getTableIdByName(const char *tableName)
+uint8_t getTableIndexByName(const char *tableName)
 {
     char tablesMetaPath[256];
     snprintf(tablesMetaPath, sizeof(tablesMetaPath), "%s/metadata/tables.db", current_db_path);
     FILE *f = fopen(tablesMetaPath, "rb");
     if (!f)
         return 0;
+
     CompactTableMeta tMeta;
-    uint8_t foundId = 0;
+    uint8_t currentIndex = 0; // Faylın başlanğıcında 0-cı indeks
+    uint8_t foundIndex = 0;
+
+    // fread hər dövrdə 1 qeyd oxuyur, biz isə currentIndex-i bir-bir artırırıq
     while (fread(&tMeta, sizeof(CompactTableMeta), 1, f))
     {
+        currentIndex++; // 1-ci qeyd üçün 1, 2-ci qeyd üçün 2...
+
         if (tMeta.is_deleted == 0 && strcmp(tMeta.table_name, tableName) == 0)
         {
-            foundId = tMeta.table_id;
+            foundIndex = currentIndex; // Budur, sıra nömrəsi
             break;
         }
     }
     fclose(f);
-    return foundId;
+    return foundIndex; // Tapılmasa 0 qaytaracaq
 }
 
 // Cədvəl ID-si və sütun adına görə sütunun ID-sini (1-ci indeksdən başlayaraq) qaytarır
@@ -648,18 +699,25 @@ bool isColumnIndexed(uint8_t tableId, uint8_t colId, char *outIndexName)
 }
 
 // Helper: Cədvəl ID-sinə görə dinamik real adı tapır (MƏNTİQİ SƏHV BURADA HƏLL OLUNDU)
-bool getTableNameById(uint8_t tableId, char *outName)
+bool getTableNameByIndex(uint8_t tableIndex, char *outName)
 {
     char tablesMetaPath[256];
     snprintf(tablesMetaPath, sizeof(tablesMetaPath), "%s/metadata/tables.db", current_db_path);
     FILE *f = fopen(tablesMetaPath, "rb");
     if (!f)
         return false;
+
     CompactTableMeta tMeta;
     bool found = false;
+    uint8_t currentIndex = 0;
+
+    // Faylı oxuyaraq sıra ilə gedirik
     while (fread(&tMeta, sizeof(CompactTableMeta), 1, f))
     {
-        if (tMeta.is_deleted == 0 && tMeta.table_id == tableId)
+        currentIndex++; // Hər qeyddə indeksi artırırıq
+
+        // Əgər indekslərimiz üst-üstə düşürsə və qeyd silinməyibsə
+        if (currentIndex == tableIndex && tMeta.is_deleted == 0)
         {
             strncpy(outName, tMeta.table_name, MAX_NAME_LEN);
             found = true;
@@ -670,21 +728,25 @@ bool getTableNameById(uint8_t tableId, char *outName)
     return found;
 }
 
-
 // Cədvəl ID-si və Sütun ID-sinə görə sütunun real adını metadatadan tapır
-bool getColumnNameById(uint8_t tableId, uint8_t colId, char *outColName) {
+bool getColumnNameById(uint8_t tableId, uint8_t colId, char *outColName)
+{
     char columnsMetaPath[256];
     snprintf(columnsMetaPath, sizeof(columnsMetaPath), "%s/metadata/columns.db", current_db_path);
     FILE *f = fopen(columnsMetaPath, "rb");
-    if (!f) return false;
+    if (!f)
+        return false;
 
     CompactColumnMeta cMeta;
     uint8_t currentCharId = 1; // 0-cı indeks is_deleted-dir, real sütunlar 1-dən başlayır
     bool found = false;
 
-    while (fread(&cMeta, sizeof(CompactColumnMeta), 1, f)) {
-        if (cMeta.table_id == tableId && cMeta.is_deleted == 0) {
-            if (currentCharId == colId) {
+    while (fread(&cMeta, sizeof(CompactColumnMeta), 1, f))
+    {
+        if (cMeta.table_id == tableId && cMeta.is_deleted == 0)
+        {
+            if (currentCharId == colId)
+            {
                 strncpy(outColName, cMeta.column_name, MAX_NAME_LEN);
                 found = true;
                 break;
@@ -694,6 +756,68 @@ bool getColumnNameById(uint8_t tableId, uint8_t colId, char *outColName) {
     }
     fclose(f);
     return found;
+}
+
+// uint8_t getTableIndexByName(const char *tableName)
+// {
+//     char tablesMetaPath[256];
+//     snprintf(tablesMetaPath, sizeof(tablesMetaPath), "%s/metadata/tables.db", current_db_path);
+//     FILE *f = fopen(tablesMetaPath, "rb");
+//     if (!f)
+//         return 0;
+
+//     CompactTableMeta tMeta;
+//     uint8_t currentIndex = 0; // Faylın başlanğıcında 0-cı indeks
+//     uint8_t foundIndex = 0;
+
+//     // fread hər dövrdə 1 qeyd oxuyur, biz isə currentIndex-i bir-bir artırırıq
+//     while (fread(&tMeta, sizeof(CompactTableMeta), 1, f))
+//     {
+//         currentIndex++; // 1-ci qeyd üçün 1, 2-ci qeyd üçün 2...
+
+//         if (tMeta.is_deleted == 0 && strcmp(tMeta.table_name, tableName) == 0)
+//         {
+//             foundIndex = currentIndex; // Budur, sıra nömrəsi
+//             break;
+//         }
+//     }
+//     fclose(f);
+//     return foundIndex; // Tapılmasa 0 qaytaracaq
+// }
+
+int loadConfigsForTable(uint8_t tableId, ColumnConfig configs[])
+{
+    int count = 0;
+    char path[256];
+    snprintf(path, sizeof(path), "%s/metadata/columns.db", current_db_path);
+
+    FILE *f = fopen(path, "rb");
+    if (!f)
+        return 0;
+
+    CompactColumnMeta cMeta;
+    while (fread(&cMeta, sizeof(CompactColumnMeta), 1, f))
+    {
+        // Yalnız aktiv (is_deleted == 0) və bizim cədvələ aid olanları götür
+        if (cMeta.is_deleted == 0 && cMeta.table_id == tableId)
+        {
+            strncpy(configs[count].columnName, cMeta.column_name, MAX_NAME_LEN);
+            configs[count].typeID = cMeta.type_id;
+            configs[count].dataSize = cMeta.data_size;
+            count++;
+        }
+    }
+    fclose(f);
+    return count; // Tapılan sütunların ümumi sayını qaytarır
+}
+
+int getOffsetOfColumn(const char* colName, ColumnConfig* configs, int colCount) {
+    int offset = 1; // 0-cı bayt 'is_deleted'
+    for (int i = 1; i < colCount; i++) { // 1-dən başlayırıq, çünki 0-da is_deleted var
+        if (strcmp(configs[i].columnName, colName) == 0) return offset;
+        offset += configs[i].dataSize;
+    }
+    return -1;
 }
 
 #endif

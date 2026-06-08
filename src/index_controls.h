@@ -6,7 +6,7 @@
 
 // İstifadəçinin manual olaraq istənilən sütuna indeks əlavə etməsi üçün funksiya
 bool createIndex(const char *tableName, const char *columnName) {
-    uint8_t tId = getTableIdByName(tableName);
+    uint8_t tId = getTableIndexByName(tableName);
     uint8_t cId = getColumnIdByName(tId, columnName);
     if (tId == 0 || cId == 0) return false;
 
@@ -52,119 +52,119 @@ bool createRelationWithAutoIndex(const char *parentTable, const char *parentCol,
 
 // INSERT: Hər dəfə yeni data yazılanda indeks faylına qeyd əlavə edilir
 // Relyasiya və İndeks dəstəkli Tam Insert funksiyası
-bool insertRowsWithIndex(const char *tableName, void *dataPointer[], int dataCount) {
-    uint8_t thisTableId = getTableIdByName(tableName);
+// bool insertRowsWithIndex(const char *tableName, void *dataPointer[], int dataCount) {
+//     uint8_t thisTableId = getTableIndexByName(tableName);
 
-    // ====================================================================
-    // 1. FOREIGN KEY INTEGRITY CHECK (Valideyn Cədvəldə ID Yoxlanışı)
-    // ====================================================================
-    char relPath[256];
-    snprintf(relPath, sizeof(relPath), "%s/metadata/relations.db", current_db_path);
+//     // ====================================================================
+//     // 1. FOREIGN KEY INTEGRITY CHECK (Valideyn Cədvəldə ID Yoxlanışı)
+//     // ====================================================================
+//     char relPath[256];
+//     snprintf(relPath, sizeof(relPath), "%s/metadata/relations.db", current_db_path);
     
-    FILE *fRel = fopen(relPath, "rb");
-    if (fRel) {
-        CompactRelation rel;
-        while (fread(&rel, sizeof(CompactRelation), 1, fRel)) {
-            if (rel.is_deleted == 0 && rel.child_table_id == thisTableId) {
+//     FILE *fRel = fopen(relPath, "rb");
+//     if (fRel) {
+//         CompactRelation rel;
+//         while (fread(&rel, sizeof(CompactRelation), 1, fRel)) {
+//             if (rel.is_deleted == 0 && rel.child_table_id == thisTableId) {
                 
-                // Biz child cədvəlik! Daxil edilən xarici ID dəyərini oxuyuruq
-                uint32_t insertedFkVal = *(uint32_t *)dataPointer[rel.child_col_id - 1];
+//                 // Biz child cədvəlik! Daxil edilən xarici ID dəyərini oxuyuruq
+//                 uint32_t insertedFkVal = *(uint32_t *)dataPointer[rel.child_col_id - 1];
 
-                // Valideyn cədvəlin faylını açırıq (Sadəlik üçün "users" fərz edirik)
-                char parentTableName[64] = "users"; 
-                char parentTableFilePath[256];
-                snprintf(parentTableFilePath, sizeof(parentTableFilePath), "%s/tables/%s.db", current_db_path, parentTableName);
+//                 // Valideyn cədvəlin faylını açırıq (Sadəlik üçün "users" fərz edirik)
+//                 char parentTableName[64] = "users"; 
+//                 char parentTableFilePath[256];
+//                 snprintf(parentTableFilePath, sizeof(parentTableFilePath), "%s/tables/%s.db", current_db_path, parentTableName);
 
-                FILE *fParent = fopen(parentTableFilePath, "rb");
-                if (!fParent) {
-                    printf("XETA: Valideyn cedvel fayli (%s.db) tapilmadi!\n", parentTableName);
-                    fclose(fRel);
-                    return false;
-                }
+//                 FILE *fParent = fopen(parentTableFilePath, "rb");
+//                 if (!fParent) {
+//                     printf("XETA: Valideyn cedvel fayli (%s.db) tapilmadi!\n", parentTableName);
+//                     fclose(fRel);
+//                     return false;
+//                 }
 
-                DBHeader pHeader;
-                fread(&pHeader, sizeof(DBHeader), 1, fParent);
-                fseek(fParent, sizeof(DBHeader) + (sizeof(ColumnConfig) * pHeader.columnCount), SEEK_SET);
+//                 DBHeader pHeader;
+//                 fread(&pHeader, sizeof(DBHeader), 1, fParent);
+//                 fseek(fParent, sizeof(DBHeader) + (sizeof(ColumnConfig) * pHeader.columnCount), SEEK_SET);
 
-                uint8_t pRowBuffer[256];
-                bool idExistsInParent = false;
+//                 uint8_t pRowBuffer[256];
+//                 bool idExistsInParent = false;
 
-                // Valideyn cədvəli sətir-sətir yoxlayırıq
-                for (uint32_t pi = 0; pi < pHeader.rowCount; pi++) {
-                    fread(pRowBuffer, pHeader.rowSize, 1, fParent);
-                    if (pRowBuffer[0] == 1) continue; // Soft-delete olanları keçirik
+//                 // Valideyn cədvəli sətir-sətir yoxlayırıq
+//                 for (uint32_t pi = 0; pi < pHeader.rowCount; pi++) {
+//                     fread(pRowBuffer, pHeader.rowSize, 1, fParent);
+//                     if (pRowBuffer[0] == 1) continue; // Soft-delete olanları keçirik
 
-                    uint32_t parentIdVal = *(uint32_t *)(pRowBuffer + 1); // ID sütunu ofset 1
-                    if (parentIdVal == insertedFkVal) {
-                        idExistsInParent = true;
-                        break;
-                    }
-                }
-                fclose(fParent);
+//                     uint32_t parentIdVal = *(uint32_t *)(pRowBuffer + 1); // ID sütunu ofset 1
+//                     if (parentIdVal == insertedFkVal) {
+//                         idExistsInParent = true;
+//                         break;
+//                     }
+//                 }
+//                 fclose(fParent);
 
-                // Əgər valideyn cədvəldə bu ID yoxdursa, İNSERT-İ BLOKLAYIRIQ!
-                if (!idExistsInParent) {
-                    printf("FOREIGN KEY INTEGRITY VIOLATION: '%s' cedveline data daxil edile bilmez! ", tableName);
-                    printf("Cunki '%s' cedvelinde id = %u olan aktiv qeyd yoxdur!\n", parentTableName, insertedFkVal);
-                    fclose(fRel);
-                    return false;
-                }
-            }
-        }
-        fclose(fRel);
-    }
+//                 // Əgər valideyn cədvəldə bu ID yoxdursa, İNSERT-İ BLOKLAYIRIQ!
+//                 if (!idExistsInParent) {
+//                     printf("FOREIGN KEY INTEGRITY VIOLATION: '%s' cedveline data daxil edile bilmez! ", tableName);
+//                     printf("Cunki '%s' cedvelinde id = %u olan aktiv qeyd yoxdur!\n", parentTableName, insertedFkVal);
+//                     fclose(fRel);
+//                     return false;
+//                 }
+//             }
+//         }
+//         fclose(fRel);
+//     }
 
-    // ====================================================================
-    // 2. DATANIN DİSKƏ YAZILMASI
-    // ====================================================================
-    // Datanı .db faylına fiziki olaraq vururuq (Və Auto-increment işləyir)
-    bool status = insertRows(tableName, dataPointer, dataCount); 
-    if (!status) return false;
+//     // ====================================================================
+//     // 2. DATANIN DİSKƏ YAZILMASI
+//     // ====================================================================
+//     // Datanı .db faylına fiziki olaraq vururuq (Və Auto-increment işləyir)
+//     bool status = insertRows(tableName, dataPointer, dataCount); 
+//     if (!status) return false;
 
-    // ====================================================================
-    // 3. AVTOMATİK BİNAR İNDEKS YENİLƏNMƏSİ (.idx faylları)
-    // ====================================================================
-    char tableFilePath[256];
-    snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
-    FILE *file = fopen(tableFilePath, "rb");
-    if (!file) return false;
+//     // ====================================================================
+//     // 3. AVTOMATİK BİNAR İNDEKS YENİLƏNMƏSİ (.idx faylları)
+//     // ====================================================================
+//     char tableFilePath[256];
+//     snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", current_db_path, tableName);
+//     FILE *file = fopen(tableFilePath, "rb");
+//     if (!file) return false;
 
-    DBHeader header;
-    fread(&header, sizeof(DBHeader), 1, file);
-    fclose(file);
+//     DBHeader header;
+//     fread(&header, sizeof(DBHeader), 1, file);
+//     fclose(file);
 
-    // Son yazılan sətirin fiziki bayt mövqeyini (File Position) hesablayırıq
-    uint32_t lastIdx = (header.nextRowIndex == 0) ? header.maxRows - 1 : header.nextRowIndex - 1;
-    uint32_t writePosition = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount) + (lastIdx * header.rowSize);
+//     // Son yazılan sətirin fiziki bayt mövqeyini (File Position) hesablayırıq
+//     uint32_t lastIdx = (header.nextRowIndex == 0) ? header.maxRows - 1 : header.nextRowIndex - 1;
+//     uint32_t writePosition = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount) + (lastIdx * header.rowSize);
 
-    // Cədvəlin hansı sütunlarının indeksi varsa, hamısını yeniləyirik
-    for (uint8_t c = 1; c < header.columnCount; c++) {
-        char idxName[32];
-        if (isColumnIndexed(thisTableId, c, idxName)) {
-            char idxPath[256];
-            snprintf(idxPath, sizeof(idxPath), "%s/tables/%s", current_db_path, idxName);
+//     // Cədvəlin hansı sütunlarının indeksi varsa, hamısını yeniləyirik
+//     for (uint8_t c = 1; c < header.columnCount; c++) {
+//         char idxName[32];
+//         if (isColumnIndexed(thisTableId, c, idxName)) {
+//             char idxPath[256];
+//             snprintf(idxPath, sizeof(idxPath), "%s/tables/%s", current_db_path, idxName);
             
-            FILE *fIdx = fopen(idxPath, "ab+");
-            if (fIdx) {
-                IndexEntry entry;
-                entry.key_value = *(uint32_t *)dataPointer[c - 1]; // İndekslənən uint32_t dəyər
-                entry.file_offset = writePosition;                    // Sətrin fayldakı yeri
+//             FILE *fIdx = fopen(idxPath, "ab+");
+//             if (fIdx) {
+//                 IndexEntry entry;
+//                 entry.key_value = *(uint32_t *)dataPointer[c - 1]; // İndekslənən uint32_t dəyər
+//                 entry.file_offset = writePosition;                    // Sətrin fayldakı yeri
                 
-                fwrite(&entry, sizeof(IndexEntry), 1, fIdx);
-                fclose(fIdx);
-            }
-        }
-    }
+//                 fwrite(&entry, sizeof(IndexEntry), 1, fIdx);
+//                 fclose(fIdx);
+//             }
+//         }
+//     }
 
-    printf("Ugurlu: 1 satir '%s' cedvaline daxil edildi (Auto-Increment ve Indeksler yenilendi).\n", tableName);
-    return true;
-}
+//     printf("Ugurlu: 1 satir '%s' cedvaline daxil edildi (Auto-Increment ve Indeksler yenilendi).\n", tableName);
+//     return true;
+// }
 
 
 
 // SELECT WHERE: Əgər şərt qoyulan sütunun indeksi varsa, O(1) ilə birbaşa nöqtəyə sıçrayır!
 uint8_t selectWhereWithIndex(const char* tableName, const char* whereColumnsName[], void* whereColumnsData[], const char* whereOperators[]) {
-    uint8_t tId = getTableIdByName(tableName);
+    uint8_t tId = getTableIndexByName(tableName);
     uint8_t cId = getColumnIdByName(tId, whereColumnsName[0]); // İlk şərt sütununa baxırıq
     char idxName[32];
 
@@ -237,7 +237,7 @@ uint8_t selectWhereWithIndex(const char* tableName, const char* whereColumnsName
 
 // DROP TABLE və ya RECREATE zamanı indeksləri təmizləyən funksiya
 void resetTableIndexes(const char *tableName) {
-    uint8_t tId = getTableIdByName(tableName);
+    uint8_t tId = getTableIndexByName(tableName);
     if (tId == 0) return;
 
     char idxMetaPath[256];
