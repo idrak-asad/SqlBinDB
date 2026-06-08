@@ -8,7 +8,7 @@
 #include <stdint.h>
 
 #define MAX_COLUMNS 15
-#define MAX_CHAR 50
+#define MAX_CHAR 40
 #define MAX_NAME_LEN 32
 
 // #ifndef TABLE_CONTROLS_H
@@ -33,7 +33,7 @@
 
 
 
-char current_db_path[128] = "";
+char current_db_path[70] = "";
 char current_db_name[18] = "";
 
 // extern char current_db_path[128];
@@ -138,7 +138,7 @@ typedef struct
 
 
 typedef struct {
-    char sql[250];
+    char sql[200];
     char tableName[MAX_NAME_LEN];
     uint32_t *rowIndices; // Tapılan sətirlərin ofsetləri
     uint8_t count;        // Hazırkı batch-də tapılanların sayı
