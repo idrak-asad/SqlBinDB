@@ -520,8 +520,9 @@ Cursor executeSQL(const char *sql)
 
             if (reCreate)
             {
-                dropDb(dbName, dbPsw);
                 printf("[PROSES İCRA OLUNUR]: '%s' bazası (Parol: '%s') (reCreate = true).\n", dbName, dbPsw);
+                dropDb(dbName, dbPsw);
+                
             }
             else
             {

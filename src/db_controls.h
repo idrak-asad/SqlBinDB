@@ -46,7 +46,7 @@ void initSystem()
         Serial.println("XƏTA: LittleFS mount edilə bilmədi!");
         return;
     }
-
+    Serial.println("init 1");
     // LittleFS obyekti daxili idarəetmədə '/littlefs' prefiksini özü idarə edir
     if (!LittleFS.exists(LFS_DIR))
     {
@@ -59,6 +59,7 @@ void initSystem()
             Serial.println("XƏTA: Qovluq yaradıla bilmədi!");
         }
     }
+    Serial.println("init 1");
 
     // Master binar qeydiyyat faylı yoxdursa, sıfırdan binar rejimdə yaradaq
     FILE *fCheck = fopen(MASTER_FILE, "rb");
@@ -75,6 +76,7 @@ void initSystem()
             Serial.println("XƏTA: Master verilənlər bazası binar faylı yaradıla bilmədi!");
         }
     }
+    Serial.println("init 1");
     else
     {
         fclose(fCheck);
