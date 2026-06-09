@@ -48,13 +48,17 @@ void initSystem()
     }
     Serial.println("init 1");
     Serial.println("Mərkəzi qovluq yaradılır: " LFS_DIR);
-    Serial.printf("Ümumi yer: %u bayt\n", LittleFS.totalBytes());
-    Serial.printf("İstifadə olunan yer: %u bayt\n", LittleFS.usedBytes());
     // LittleFS obyekti daxili idarəetmədə '/littlefs' prefiksini özü idarə edir
+    UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
+
+    Serial.printf("Free stack: %u words\n", freeWords);
+    Serial.printf("Free stack: %u bytes\n", freeWords * sizeof(StackType_t));
     if (!LittleFS.exists(LFS_DIR))
     {
-        Serial.printf("Ümumi yer: %u bayt\n", LittleFS.totalBytes());
-        Serial.printf("İstifadə olunan yer: %u bayt\n", LittleFS.usedBytes());
+        UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
+
+        Serial.printf("Free stack: %u words\n", freeWords);
+        Serial.printf("Free stack: %u bytes\n", freeWords * sizeof(StackType_t));
         Serial.println("init 1.1");
         if (LittleFS.mkdir(LFS_DIR))
         {

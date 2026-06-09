@@ -39,11 +39,6 @@ char current_db_name[18] = "";
 // extern char current_db_path[128];
 // extern char current_db_name[18];
 
-// uint8_t getTableIdByName(const char *tableName);
-// uint8_t getColumnIdByName(uint8_t tableId, const char *colName);
-// bool dropTable(const char *tableName, int hardDrop);
-// uint8_t deleteRows(const char *tableName, char *whereColumnsName[], void *whereColumnsData[], char *whereOperators[], int hardDelete);
-
 #pragma pack(push, 1)
 // .db faylının ən başında duracaq idarəetmə bloku (Metadata)
 
