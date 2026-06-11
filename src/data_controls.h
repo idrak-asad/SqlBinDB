@@ -1137,8 +1137,10 @@ bool readRowByIndex(const char *tableName, uint32_t rowIndex, uint8_t *outRowBuf
     return true;
 }
 
-int insertRowsWithDelete(const char *tableName, const char *colsStr, const char *valsStr, int colCount)
+Cursor insertRowsWithDelete(const char *tableName, const char *colsStr, const char *valsStr, int colCount)
 {
+    Cursor cursor;
+    cursor.lastOffset = 0;
     printf("[DEBUG]: Insert əməliyyatı başlayır: %s\n", tableName);
     printf("[DEBUG]: Gələn Sütunlar: %s | Dəyərlər: %s\n", colsStr, valsStr);
 
@@ -1147,7 +1149,7 @@ int insertRowsWithDelete(const char *tableName, const char *colsStr, const char 
     if (tableId == 0)
     {
         printf("[XƏTA]: '%s' cədvəli tapılmadı!\n", tableName);
-        return -1;
+        return cursor;
     }
 
     // 2. Metadata-dan sütun strukturlarını yüklə
@@ -1248,7 +1250,7 @@ int insertRowsWithDelete(const char *tableName, const char *colsStr, const char 
     snprintf(path, sizeof(path), "%s/tables/%s.db", current_db_path, tableName);
     FILE *file = fopen(path, "rb+");
     if (!file)
-        return -1;
+        return cursor;
 
     DBHeader header;
     fread(&header, sizeof(DBHeader), 1, file);
@@ -1298,8 +1300,8 @@ int insertRowsWithDelete(const char *tableName, const char *colsStr, const char 
     fclose(file);
     printf("[UĞURLU]: Məlumat %d-ci sıraya (deleted reuse: %s) yazıldı.\n",
            targetRowIndex, foundDeletedRow ? "BƏLİ" : "XEYR");
-
-    return targetRowIndex;
+    cursor.lastOffset = targetRowIndex;
+    return cursor;
 }
 
 #endif

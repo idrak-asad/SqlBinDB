@@ -1110,7 +1110,7 @@ Cursor executeSQL(const char *sql)
                             {
                             case 0:
                                 printf("ABORT/RESTRICT (Xəta olarsa əməliyyat ləğv ediləcək)\n");
-                                insertRowsWithDelete(tableName, colsBuf, valsBuf, columns_count);
+                                retrunCursor = insertRowsWithDelete(tableName, colsBuf, valsBuf, columns_count);
                                 break;
                             case 1:
                                 printf("REPLACE/CASCADE (Eyni unikal data varsa, köhnəni silib yenisini yazacaq)\n");
