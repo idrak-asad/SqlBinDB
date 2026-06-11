@@ -241,7 +241,7 @@ Cursor selectData(const char *tableName, Cursor *prevCursor)
     Cursor newCursor;
     newCursor.count = 0;
     // newCursor.rowIndices = malloc(sizeof(uint32_t) * 10); // 10-luq batch
-    newCursor.rowIndices = (uint32_t*)malloc(sizeof(uint32_t) * 100);
+    newCursor.rowIndices = (uint32_t *)malloc(sizeof(uint32_t) * 100);
     newCursor.isFinished = false;
 
     // 1. Faylı aç (openTable sizin funksiyanızdır)
@@ -971,7 +971,7 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
     Cursor cursor;
     cursor.count = 0;
     // cursor.rowIndices = malloc(sizeof(uint32_t) * 100); // Məsələn, 100 sətir üçün yer ayırırıq
-    cursor.rowIndices = (uint32_t*)malloc(sizeof(uint32_t) * 100);
+    cursor.rowIndices = (uint32_t *)malloc(sizeof(uint32_t) * 100);
     cursor.isFinished = true;
 
     DBHeader header;
@@ -1118,7 +1118,7 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
 
                 if (strcmp(whereOperators[w], "=") == 0)
                     conditionPassed = (dbVal == userVal);
-                printf(" INT8 column name: %s-> %d %s %d -> %d",whereColumnsName[w], dbVal, whereOperators[w], userVal, conditionPassed);
+                printf(" INT8 column name: %s-> %d %s %d -> %d", whereColumnsName[w], dbVal, whereOperators[w], userVal, conditionPassed);
             }
 
             // 🌟 Serial.format xətası Serial.printf ilə əvəzləndi:
@@ -1766,18 +1766,18 @@ bool getColumnOffsetAndType(const char *tableName, const char *colName, int *off
 void printColumnValue(const char *tableName, uint32_t rowIndex, const char *colName)
 {
 
-    if (strcmp(colName, "is_deleted") == 0)
-    {
-        uint8_t statusByte;
-        // fetchRowData funksiyanızın daxilində row-un 0-cı baytı 
-        // adətən is_deleted statusunu saxlayır.
-        if (fetchRowStatus(tableName, rowIndex, &statusByte)) 
-        {
-            *(uint8_t*)outValue = statusByte;
-            // return;
-        }
-        return;
-    }
+    // if (strcmp(colName, "is_deleted") == 0)
+    // {
+    //     uint8_t statusByte;
+    //     // fetchRowData funksiyanızın daxilində row-un 0-cı baytı
+    //     // adətən is_deleted statusunu saxlayır.
+    //     if (fetchRowStatus(tableName, rowIndex, &statusByte))
+    //     {
+    //         *(uint8_t*)outValue = statusByte;
+    //         // return;
+    //     }
+    //     return;
+    // }
 
     uint8_t buffer[512];
     if (!fetchRowData(tableName, rowIndex, buffer))
@@ -1806,7 +1806,11 @@ bool getColumnData(const char *tableName, uint32_t rowIndex, const char *colName
     uint8_t buffer[512];
     if (!fetchRowData(tableName, rowIndex, buffer))
         return false;
-
+    if (strcmp(colName, "is_deleted") == 0)
+    {
+        *(uint8_t *)outValue = buffer[0];
+        return true;
+    }
     int offset, type, size;
     if (getColumnOffsetAndType(tableName, colName, &offset, &type, &size))
     {
@@ -1822,7 +1826,7 @@ Cursor selectWhereCursor(const char *tableName, char *whereColumnsName[], void *
     Cursor cursor;
     cursor.count = 0;
     // cursor.rowIndices = malloc(sizeof(uint32_t) * 10); // İlkin 100 sətirlik yer
-    cursor.rowIndices = (uint32_t*)malloc(sizeof(uint32_t) * 10);
+    cursor.rowIndices = (uint32_t *)malloc(sizeof(uint32_t) * 10);
     cursor.isFinished = true;
 
     DBHeader header;
