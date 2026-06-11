@@ -309,7 +309,7 @@ Cursor selectData(const char *tableName, Cursor *prevCursor)
     return newCursor;
 }
 
-// void selectData(const char *tableName) {
+// void selectDataAll(const char *tableName) {
 //     FILE *file = openTable(tableName, "r");
 //     if (!file) {
 //         printf("XETA: Fayl acilmadi: %s\n", tableName);
@@ -1765,6 +1765,20 @@ bool getColumnOffsetAndType(const char *tableName, const char *colName, int *off
 // İstədiyiniz sütunun dəyərini sadəcə adını yazaraq alın
 void printColumnValue(const char *tableName, uint32_t rowIndex, const char *colName)
 {
+
+    if (strcmp(colName, "is_deleted") == 0)
+    {
+        uint8_t statusByte;
+        // fetchRowData funksiyanızın daxilində row-un 0-cı baytı 
+        // adətən is_deleted statusunu saxlayır.
+        if (fetchRowStatus(tableName, rowIndex, &statusByte)) 
+        {
+            *(uint8_t*)outValue = statusByte;
+            return true;
+        }
+        return false;
+    }
+    
     uint8_t buffer[512];
     if (!fetchRowData(tableName, rowIndex, buffer))
         return;
