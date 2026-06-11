@@ -1300,7 +1300,7 @@ Cursor insertRowsWithDelete(const char *tableName, const char *colsStr, const ch
     fclose(file);
     printf("[UĞURLU]: Məlumat %d-ci sıraya (deleted reuse: %s) yazıldı.\n",
            targetRowIndex, foundDeletedRow ? "BƏLİ" : "XEYR");
-    cursor.lastOffset = targetRowIndex;
+    cursor.lastOffset = targetRowIndex+1;
     return cursor;
 }
 
