@@ -1774,11 +1774,11 @@ void printColumnValue(const char *tableName, uint32_t rowIndex, const char *colN
         if (fetchRowStatus(tableName, rowIndex, &statusByte)) 
         {
             *(uint8_t*)outValue = statusByte;
-            return true;
+            // return;
         }
-        return false;
+        return;
     }
-    
+
     uint8_t buffer[512];
     if (!fetchRowData(tableName, rowIndex, buffer))
         return;
