@@ -31,8 +31,6 @@
 #define TYPE_TIMESTAMP 8   // 4 bayt Unix Epoch saniyəsi (uint32_t)
 #define TYPE_VARCHAR2 9    // Dəyişkən sətir üçün bloq pointeri (4 bayt offset)
 
-
-
 char current_db_path[70] = "";
 char current_db_name[18] = "";
 
@@ -41,7 +39,6 @@ char current_db_name[18] = "";
 
 #pragma pack(push, 1)
 // .db faylının ən başında duracaq idarəetmə bloku (Metadata)
-
 
 // metadata/tables.db üçün də limiti qeyd edirik (Cəmi 39 byte olur)
 typedef struct
@@ -52,8 +49,6 @@ typedef struct
     uint8_t col_count;
     uint32_t max_rows; // Yeni
 } CompactTableMeta;
-
-
 
 typedef struct
 {
@@ -82,8 +77,6 @@ typedef struct
     uint8_t child_col_id;
 } CompactRelation;
 
-
-
 typedef struct
 {
     uint32_t signature; // "SQLB"
@@ -95,7 +88,6 @@ typedef struct
     uint32_t nextRowIndex;     // NÖVBƏTİ YAZILACAQ İNDEKS (0-dan maxRows-1 kimi fırlanır) (Yeni)
     uint32_t last_inserted_id; // AUTO_INCREMENT izləmək üçün yeni bölmə
 } DBHeader;
-
 
 typedef struct
 {
@@ -131,8 +123,8 @@ typedef struct
     char db_password[18];
 } DBRegistry;
 
-
-typedef struct {
+typedef struct
+{
     char sql[200];
     char tableName[MAX_NAME_LEN];
     uint32_t *rowIndices; // Tapılan sətirlərin ofsetləri
@@ -141,8 +133,8 @@ typedef struct {
     bool isFinished;      // Bütün axtarış bitdimi?
 } Cursor;
 
-
-typedef struct {
+typedef struct
+{
     char columnName[32];
     uint32_t intValue;
     float floatValue;
@@ -150,11 +142,11 @@ typedef struct {
     // Digər tipləri də əlavə edə bilərsiniz
 } Field;
 
-typedef struct {
+typedef struct
+{
     Field fields[16]; // Məsələn, 16 sütunluq bir sətir
     int fieldCount;
 } DataRow;
-
 
 #pragma pack(pop)
 
@@ -208,13 +200,12 @@ void myClose(FileHandle f)
 #ifdef PLATFORM_ESP32
     f.close();
 #else
-    if (f != NULL) {
+    if (f != NULL)
+    {
         fclose(f);
     }
 #endif
 }
-
-
 
 #if defined(TARGET_PLATFORM_ESP32)
 // ==================== ESP32 / ARDUINO REJİMİ ====================
@@ -300,7 +291,6 @@ int getColumnOffsetInRow(ColumnConfig configs[], int colCount, int colIdx)
     }
     return offset;
 }
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -616,13 +606,29 @@ bool compareValues(void *dbValue, void *checkValue, const char *op, uint8_t data
 }
 
 // Cədvəlin adından onun table_id-sini qaytarır
-uint8_t getTableIndexByName(const char *tableName)
+int getTableIndexByName(const char *tableName)
 {
-    char tablesMetaPath[256];
-    snprintf(tablesMetaPath, sizeof(tablesMetaPath), "%s/metadata/tables.db", current_db_path);
-    FILE *f = fopen(tablesMetaPath, "rb");
-    if (!f)
-        return 0;
+    // printf("getTableIndexByName-------------------------------: \n");
+    // char tablesMetaPath[256];
+    // snprintf(tablesMetaPath, sizeof(tablesMetaPath), "%s/metadata/tables.db", current_db_path);
+#if defined(TARGET_PLATFORM_ESP32)
+    FILE f = openTable(tableName, "r");
+    if (!f){
+// printf("cedvel tailmadi---------------------");
+        return -;
+    }
+    
+#else
+    FILE *f = openTable(tableName, "r");
+    // printf("cedvel tapildi-------------------------------0: \n");
+    if (!f){
+        // printf("cedvel tailmadi----------------");
+        return -1;
+    }
+    
+    // printf("cedvel tapildi-------------------------------1: \n");
+#endif
+//  printf("cedvel tapildi-------------------------------2: \n");
 
     CompactTableMeta tMeta;
     uint8_t currentIndex = 0; // Faylın başlanğıcında 0-cı indeks
@@ -640,6 +646,9 @@ uint8_t getTableIndexByName(const char *tableName)
         }
     }
     fclose(f);
+    // if (foundIndex==0){
+    //     foundIndex++;
+    // }
     return foundIndex; // Tapılmasa 0 qaytaracaq
 }
 
@@ -795,7 +804,7 @@ int loadConfigsForTable(uint8_t tableId, ColumnConfig configs[])
     while (fread(&cMeta, sizeof(CompactColumnMeta), 1, f))
     {
         // Yalnız aktiv (is_deleted == 0) və bizim cədvələ aid olanları götür
-        if (cMeta.is_deleted == 0 && cMeta.table_id == tableId)
+        if (cMeta.is_deleted == 0 && cMeta.table_id == tableId+1)
         {
             strncpy(configs[count].columnName, cMeta.column_name, MAX_NAME_LEN);
             configs[count].typeID = cMeta.type_id;
@@ -807,10 +816,13 @@ int loadConfigsForTable(uint8_t tableId, ColumnConfig configs[])
     return count; // Tapılan sütunların ümumi sayını qaytarır
 }
 
-int getOffsetOfColumn(const char* colName, ColumnConfig* configs, int colCount) {
+int getOffsetOfColumn(const char *colName, ColumnConfig *configs, int colCount)
+{
     int offset = 1; // 0-cı bayt 'is_deleted'
-    for (int i = 1; i < colCount; i++) { // 1-dən başlayırıq, çünki 0-da is_deleted var
-        if (strcmp(configs[i].columnName, colName) == 0) return offset;
+    for (int i = 1; i < colCount; i++)
+    { // 1-dən başlayırıq, çünki 0-da is_deleted var
+        if (strcmp(configs[i].columnName, colName) == 0)
+            return offset;
         offset += configs[i].dataSize;
     }
     return -1;
