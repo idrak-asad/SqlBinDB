@@ -635,8 +635,8 @@ int getTableIndexByName(const char *tableName)
     uint8_t foundIndex = 0;
 
     // fread hər dövrdə 1 qeyd oxuyur, biz isə currentIndex-i bir-bir artırırıq
-    while (fread(&tMeta, sizeof(CompactTableMeta), 1, f))
-    {
+    while (DB_FILE_READ(f, &tMeta, sizeof(CompactTableMeta)) == sizeof(CompactTableMeta))
+{
         currentIndex++; // 1-ci qeyd üçün 1, 2-ci qeyd üçün 2...
 
         if (tMeta.is_deleted == 0 && strcmp(tMeta.table_name, tableName) == 0)
@@ -645,7 +645,7 @@ int getTableIndexByName(const char *tableName)
             break;
         }
     }
-    fclose(f);
+    DB_CLOSE_FILE(f);
     // if (foundIndex==0){
     //     foundIndex++;
     // }
