@@ -1122,10 +1122,11 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
                     conditionPassed = (dbVal == userVal);
                 printf(" INT8 column name: %s-> %d %s %d -> %d", whereColumnsName[w], dbVal, whereOperators[w], userVal, conditionPassed);
             }
-
+            printf(" ------------------1\n");
             // 🌟 Serial.format xətası Serial.printf ilə əvəzləndi:
             if (r == 0)
             {
+                printf(" ------------------2\n");
                 // Serial.print("[Diaqnostika] Sütun: ");
                 // printf("[Diaqnostika] Sütun: \n");
 // Və ya tam cross-platform olması üçün:
@@ -1144,20 +1145,24 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
                 //     Serial.printf(" | Ofset: %d | TipID: %d | Netice: %s\n",
                 //                   currentOffset, configs[foundIdx].typeID, conditionPassed ? "KECDİ" : "XETA");
             }
-
+            printf(" ------------------3\n");
             if (!conditionPassed)
             {
+                printf(" ------------------4\n");
                 allConditionsMatch = false;
                 break;
             }
+            printf(" ------------------5\n");
             printf("\n");
         }
         if (allConditionsMatch)
         {
+            printf(" ------------------6\n");
             cursor.rowIndices[cursor.count++] = r; // ID-ni yadda saxla
             printf(" id: %d  count: %d\n", r, cursor.count);
             // }
         }
+        printf(" ------------------7\n");
     }
 #if defined(TARGET_PLATFORM_ESP32)
     file.close();
@@ -1590,12 +1595,12 @@ uint8_t selectAndDelete(const char *tableName, char *whereColumnsName[], void *w
     int whereCount = 0;
     while (whereColumnsName[whereCount] != NULL)
         whereCount++;
-printf(" select and delete  --------------2: \n");
+    printf(" select and delete  --------------2: \n");
     uint8_t rowBuffer[512];
     uint8_t deletedCount = 0;
     uint8_t deleteFlag = 1;
     long startPosition = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
-printf(" select and delete  --------------3: \n");
+    printf(" select and delete  --------------3: \n");
     for (uint32_t r = 0; r < header.rowCount; r++)
     {
         long rowPos = startPosition + (r * header.rowSize);
@@ -1612,7 +1617,7 @@ printf(" select and delete  --------------3: \n");
         DB_FILE_SEEK(file, rowPos);
         DB_FILE_READ(file, rowBuffer, header.rowSize);
         //
-printf(" select and delete  --------------4: \n");
+        printf(" select and delete  --------------4: \n");
         if (rowBuffer[0] == 1)
             continue; // Soft-delete olanları keç
 
@@ -1644,7 +1649,7 @@ printf(" select and delete  --------------4: \n");
                 allConditionsMatch = false;
                 break;
             }
-printf(" select and delete  --------------6: \n");
+            printf(" select and delete  --------------6: \n");
             // YENİ: Köməkçi funksiyanı çağırırıq
             bool conditionPassed = checkCondition(
                 configs[foundIdx].typeID,
@@ -1676,8 +1681,8 @@ printf(" select and delete  --------------6: \n");
         }
     }
 
-// fclose(file);
-printf(" select and delete  --------------8: \n");
+    // fclose(file);
+    printf(" select and delete  --------------8: \n");
 #if defined(TARGET_PLATFORM_ESP32)
     file.close();
 #else
