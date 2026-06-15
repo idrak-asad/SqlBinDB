@@ -1054,16 +1054,20 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
 
             for (int i = 1; i < header.columnCount; i++)
             {
+                printf(" Loop------------------1\n");
                 if (strcmp(configs[i].columnName, whereColumnsName[w]) == 0)
                 {
+                    printf(" loop------------------2\n");
                     foundIdx = i;
                     break;
                 }
                 currentOffset += configs[i].dataSize;
+                printf(" loop------------------3\n");
             }
 
             if (foundIdx == -1)
             {
+                printf(" loop------------------4\n");
                 allConditionsMatch = false;
                 break;
             }
