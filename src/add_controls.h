@@ -299,7 +299,7 @@ int getColumnOffsetInRow(ColumnConfig configs[], int colCount, int colIdx)
 
 bool checkCondition(uint8_t typeID, uint8_t dataSize, uint8_t *dbFieldPtr, void *userValPtr, const char *op)
 {
-    printf("checkCondition running: \n");
+    printf("check Condition running: \n");
     if (userValPtr == NULL)
         return false;
     // printf("num: %d\n", 2);
