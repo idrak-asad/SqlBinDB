@@ -612,7 +612,7 @@ int getTableIndexByName(const char *tableName)
     // char tablesMetaPath[256];
     // snprintf(tablesMetaPath, sizeof(tablesMetaPath), "%s/metadata/tables.db", current_db_path);
 #if defined(TARGET_PLATFORM_ESP32)
-    FILE f = openTable(tableName, "r");
+    File f = openTable(tableName, "r");
     if (!f){
 // printf("cedvel tailmadi---------------------");
         return -1;
