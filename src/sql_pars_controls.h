@@ -354,7 +354,7 @@ Cursor executeSelect(const char *sql, Cursor cursor)
         else if (!hasJoin && hasWhere)
         {
             // Ssenari 2: SELECT * FROM users WHERE id = 5
-            printf("[PROSES]: Şərtli select (WHERE) icra olunur.\n");
+            // printf("[PROSES]: Şərtli select (WHERE) icra olunur.\n");
 
             // Qeyd: Burada whereCond stringini parçalayıb massivlərə doldurmalısınız
             // Nümunə təmsili çağırış:
@@ -364,11 +364,12 @@ Cursor executeSelect(const char *sql, Cursor cursor)
             int whereCount = 0;
             // uint8_t types[] = {1}; // 1 = INT təmsili
             parseWhereClause2(whereCond, cols, vals, ops, &whereCount);
-            printf(" col count:  %d \n", whereCount);
+            // printf(" col count:  %d \n", whereCount);
             cursor = selectWhereCore(table1, cols, vals, ops, whereCount);
+            printf("WHERE: ");
             for (int i = 0; i < whereCount; i++)
             {
-                printf(" data: %s %s %d \n", cols[i], ops[i], vals[i]);
+                printf("    %s %s %d ", cols[i], ops[i], vals[i]);
                 free(cols[i]);
                 free((void *)ops[i]);
                 free(vals[i]);
@@ -461,7 +462,7 @@ Cursor executeSQL(const char *sql)
 
     char tableName[64] = {0};
     char dbName[64] = {0};
-    printf("\n[DAXİL OLAN SORĞU]: \"%s\"\n", sql);
+    // printf("\n[DAXİL OLAN SORĞU]: \"%s\"\n", sql);
 
     // ----------------------------------------------------------------
     // 1. SHOW DATABASES / SHOW DATABASE
