@@ -1100,7 +1100,8 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
             else if (configs[foundIdx].typeID == TYPE_INT || configs[foundIdx].typeID == TYPE_UINT32)
             {
                 uint32_t dbVal = *(uint32_t *)dbFieldPtr;
-                uint32_t userVal = *(uint32_t *)userValPtr;
+                // uint32_t userVal = *(uint32_t *)userValPtr;
+                uint32_t userVal = atoi((const char *)userValPtr);
 
                 if (strcmp(whereOperators[w], "=") == 0)
                     conditionPassed = (dbVal == userVal);
@@ -1114,7 +1115,8 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
             {
                 // conditionPassed=false;
                 uint8_t dbVal = *(uint8_t *)dbFieldPtr;
-                uint8_t userVal = *(uint8_t *)userValPtr;
+                // uint8_t userVal = *(uint8_t *)userValPtr;
+                uint8_t userVal = atoi((const char *)userValPtr);
 
                 if (strcmp(whereOperators[w], "=") == 0)
                     conditionPassed = (dbVal == userVal);

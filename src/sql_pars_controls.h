@@ -284,7 +284,7 @@ void parseWhereClause2(char *whereCond, char *cols[], void *vals[], const char *
         if (isdigit(valStr[0]))
         {
             // uint32_t *v = malloc(sizeof(uint32_t));
-            uint32_t *v = (uint32_t*)malloc(sizeof(uint32_t));
+            uint32_t *v = (uint32_t *)malloc(sizeof(uint32_t));
             *v = atoi(valStr);
             vals[*count] = v;
         }
@@ -358,22 +358,42 @@ Cursor executeSelect(const char *sql, Cursor cursor)
 
             // Qeyd: Burada whereCond stringini parçalayıb massivlərə doldurmalısınız
             // Nümunə təmsili çağırış:
-            char *cols[10];      // Maksimum 10 şərt
-            void *vals[10];      // Dəyərlər
-            const char *ops[10]; // Operatorlar
-            int whereCount = 0;
-            // uint8_t types[] = {1}; // 1 = INT təmsili
-            parseWhereClause2(whereCond, cols, vals, ops, &whereCount);
+            // char *cols[10];      // Maksimum 10 şərt
+            // void *vals[10];      // Dəyərlər
+            // const char *ops[10]; // Operatorlar
+            // int whereCount = 0;
+            // // uint8_t types[] = {1}; // 1 = INT təmsili
+            // parseWhereClause(whereCond, cols, vals, ops, &whereCount);
+
+            char *cols[10];
+            const char *ops[10];
+            void *data[10];
+            int condCount = 0;
+            printf("-------: %s\n", whereCond);
+            parseWhereClause(whereCond, cols, data, ops, &condCount);
+
             // printf(" col count:  %d \n", whereCount);
-            cursor = selectWhereCore(table1, cols, vals, ops, whereCount);
-            printf("WHERE: ");
-            for (int i = 0; i < whereCount; i++)
+            cursor = selectWhereCore(table1, cols, data, ops, condCount);
+            printf("\nWHERE: \n");
+            // for (int i = 0; i < condCount; i++)
+            // {
+            //     printf("    %s %s %d ", cols[i], ops[i], (char *)data[i]);
+            //     free(cols[i]);
+            //     free((void *)ops[i]);
+            //     free((void *)data[i]);
+            // }
+            for (int i = 0; i < condCount; i++)
             {
-                printf("    %s %s %d ", cols[i], ops[i], vals[i]);
-                free(cols[i]);
-                free((void *)ops[i]);
-                free(vals[i]);
+                if (cols[i] == NULL)
+                    break;
+
+                printf("  [%d] Sütun: '%s' | Operator: '%s' | Dəyər: '%s'\n",
+                       i,
+                       cols[i],
+                       ops[i],
+                       (char *)data[i]); // void* olduğu üçün char* olaraq cast edirik
             }
+            printf("1: ");
         }
         else if (hasJoin && !hasWhere)
         {
@@ -398,8 +418,10 @@ Cursor executeSelect(const char *sql, Cursor cursor)
             // Həm join, həm şərt funksiyası
             // selectJoinWhereData(table1, table2, parentCol, childCol, ... where massivləri ...);
         }
+        printf("2: ");
         // cursor.tableName=table1;
         strncpy(cursor.tableName, (char *)table1, sizeof(cursor.tableName) - 1);
+        printf("3: ");
         return cursor;
     }
     else
@@ -523,7 +545,6 @@ Cursor executeSQL(const char *sql)
             {
                 printf("[PROSES İCRA OLUNUR]: '%s' bazası (Parol: '%s') (reCreate = true).\n", dbName, dbPsw);
                 dropDb(dbName, dbPsw);
-                
             }
             else
             {
