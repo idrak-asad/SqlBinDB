@@ -615,7 +615,7 @@ int getTableIndexByName(const char *tableName)
     FILE f = openTable(tableName, "r");
     if (!f){
 // printf("cedvel tailmadi---------------------");
-        return -;
+        return -1;
     }
     
 #else

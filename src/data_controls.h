@@ -1145,8 +1145,8 @@ Cursor insertRowsWithDelete(const char *tableName, const char *colsStr, const ch
     printf("[DEBUG]: Gələn Sütunlar: %s | Dəyərlər: %s\n", colsStr, valsStr);
 
     // 1. Cədvəl ID-ni tap
-    uint8_t tableId = getTableIndexByName(tableName);
-    if (tableId == 0)
+    int tableId = getTableIndexByName(tableName);
+    if (tableId == -1)
     {
         printf("[XƏTA]: '%s' cədvəli tapılmadı!\n", tableName);
         return cursor;
