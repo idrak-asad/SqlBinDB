@@ -888,10 +888,10 @@ uint8_t selectWhere(const char *tableName, const char *whereColumnsName[], void 
                 // printf("[Diaqnostika] Sütun: \n");
 // Və ya tam cross-platform olması üçün:
 #if defined(TARGET_PLATFORM_ESP32)
-                Serial.print("[Diaqnostika] Sütun: ");
-                Serial.print(whereColumnsName[w]);
-                Serial.printf(" | Ofset: %d | TipID: %d | Netice: %s\n",
-                              currentOffset, configs[foundIdx].typeID, conditionPassed ? "KECDİ" : "XETA");
+                // Serial.print("[Diaqnostika] Sütun: ");
+                // Serial.print(whereColumnsName[w]);
+                // Serial.printf(" | Ofset: %d | TipID: %d | Netice: %s\n",
+                //               currentOffset, configs[foundIdx].typeID, conditionPassed ? "KECDİ" : "XETA");
 
 #else
                 printf("[Diaqnostika] Sütun: ");
@@ -1018,10 +1018,10 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
     //     whereCount++;
 
     // printf("\n=== FILTERED SELECT: %s (Filtr Sayi: %d) ===\n", tableName, whereCount);
-    for (int i = 1; i < header.columnCount; i++)
-    {
-        printf("%-15s\t", configs[i].columnName);
-    }
+    // for (int i = 1; i < header.columnCount; i++)
+    // {
+    //     printf("%-15s\t", configs[i].columnName);
+    // }
     // printf("\n--------------------------------------------------\n");
 
     uint8_t rowBuffer[512];
@@ -1135,10 +1135,10 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
                 // printf("[Diaqnostika] Sütun: \n");
 // Və ya tam cross-platform olması üçün:
 #if defined(TARGET_PLATFORM_ESP32)
-                Serial.print("[Diaqnostika] Sütun: ");
-                Serial.print(whereColumnsName[w]);
-                Serial.printf(" | Ofset: %d | TipID: %d | Netice: %s\n",
-                              currentOffset, configs[foundIdx].typeID, conditionPassed ? "KECDİ" : "XETA");
+                // Serial.print("[Diaqnostika] Sütun: ");
+                // Serial.print(whereColumnsName[w]);
+                // Serial.printf(" | Ofset: %d | TipID: %d | Netice: %s\n",
+                //               currentOffset, configs[foundIdx].typeID, conditionPassed ? "KECDİ" : "XETA");
                 // }
 #else
                 printf("[Diaqnostika] Sütun: ");
@@ -1157,7 +1157,7 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
                 break;
             }
             // printf(" ------------------5\n");
-            printf("\n");
+            // printf("\n");
         }
         // printf(" ------------------7\n");
         if (allConditionsMatch)
