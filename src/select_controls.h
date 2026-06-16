@@ -1017,12 +1017,12 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
     // while (whereColumnsName[whereCount] != NULL)
     //     whereCount++;
 
-    printf("\n=== FILTERED SELECT: %s (Filtr Sayi: %d) ===\n", tableName, whereCount);
+    // printf("\n=== FILTERED SELECT: %s (Filtr Sayi: %d) ===\n", tableName, whereCount);
     for (int i = 1; i < header.columnCount; i++)
     {
         printf("%-15s\t", configs[i].columnName);
     }
-    printf("\n--------------------------------------------------\n");
+    // printf("\n--------------------------------------------------\n");
 
     uint8_t rowBuffer[512];
     uint8_t matchCount = 0;
@@ -1054,20 +1054,20 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
 
             for (int i = 1; i < header.columnCount; i++)
             {
-                printf(" Loop------------------1\n");
+                // printf(" Loop------------------1\n");
                 if (strcmp(configs[i].columnName, whereColumnsName[w]) == 0)
                 {
-                    printf(" loop------------------2\n");
+                    // printf(" loop------------------2\n");
                     foundIdx = i;
                     break;
                 }
                 currentOffset += configs[i].dataSize;
-                printf(" loop------------------3\n");
+                // printf(" loop------------------3\n");
             }
 
             if (foundIdx == -1)
             {
-                printf(" loop------------------4\n");
+                // printf(" loop------------------4\n");
                 allConditionsMatch = false;
                 break;
             }
@@ -1126,11 +1126,11 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
                     conditionPassed = (dbVal == userVal);
                 printf(" INT8 column name: %s-> %d %s %d -> %d", whereColumnsName[w], dbVal, whereOperators[w], userVal, conditionPassed);
             }
-            printf(" ------------------1\n");
+            // printf(" ------------------1\n");
             // 🌟 Serial.format xətası Serial.printf ilə əvəzləndi:
             if (r == 0)
             {
-                printf(" ------------------2\n");
+                // printf(" ------------------2\n");
                 // Serial.print("[Diaqnostika] Sütun: ");
                 // printf("[Diaqnostika] Sütun: \n");
 // Və ya tam cross-platform olması üçün:
@@ -1149,25 +1149,25 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
                 //     Serial.printf(" | Ofset: %d | TipID: %d | Netice: %s\n",
                 //                   currentOffset, configs[foundIdx].typeID, conditionPassed ? "KECDİ" : "XETA");
             }
-            printf(" ------------------3\n");
+            // printf(" ------------------3\n");
             if (!conditionPassed)
             {
-                printf(" ------------------4\n");
+                // printf(" ------------------4\n");
                 allConditionsMatch = false;
                 break;
             }
-            printf(" ------------------5\n");
+            // printf(" ------------------5\n");
             printf("\n");
         }
-        printf(" ------------------7\n");
+        // printf(" ------------------7\n");
         if (allConditionsMatch)
         {
-            printf(" ------------------6\n");
+            // printf(" ------------------6\n");
             cursor.rowIndices[cursor.count++] = r; // ID-ni yadda saxla
             printf(" id: %d  count: %d\n", r, cursor.count);
             // }
         }
-        printf(" ------------------8\n");
+        // printf(" ------------------8\n");
     }
 #if defined(TARGET_PLATFORM_ESP32)
     file.close();
