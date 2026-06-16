@@ -219,8 +219,8 @@ File openTable(const char *tableName, const char *openType)
     }
 
     snprintf(tableFilePath, sizeof(tableFilePath), "%s/tables/%s.db", cleanPath, tableName);
-    Serial.print("[Diaqnostika] LittleFS ile acilmaga calisilan real yol: ");
-    Serial.println(tableFilePath);
+    // Serial.print("[Diaqnostika] LittleFS ile acilmaga calisilan real yol: ");
+    // Serial.println(tableFilePath);
 
     File file = LittleFS.open(tableFilePath, openType);
     if (!file)

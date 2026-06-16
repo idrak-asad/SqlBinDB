@@ -1099,7 +1099,7 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
                         conditionPassed = false;
                     }
                 }
-                printf(" char2 check %d %s %d -> %d", dbTemp, whereOperators[w], userValPtr, conditionPassed);
+                // printf(" char2 check %d %s %d -> %d", dbTemp, whereOperators[w], userValPtr, conditionPassed);
             }
             else if (configs[foundIdx].typeID == TYPE_INT || configs[foundIdx].typeID == TYPE_UINT32)
             {
@@ -1113,7 +1113,7 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
                     conditionPassed = (dbVal > userVal);
                 else if (strcmp(whereOperators[w], "<") == 0)
                     conditionPassed = (dbVal < userVal);
-                printf(" INT32 check %s -> %d %s %d -> %d", whereColumnsName[w], dbVal, whereOperators[w], userVal, conditionPassed);
+                // printf(" INT32 check %s -> %d %s %d -> %d", whereColumnsName[w], dbVal, whereOperators[w], userVal, conditionPassed);
             }
             else if (configs[foundIdx].typeID == TYPE_UINT8)
             {
@@ -1124,7 +1124,7 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
 
                 if (strcmp(whereOperators[w], "=") == 0)
                     conditionPassed = (dbVal == userVal);
-                printf(" INT8 column name: %s-> %d %s %d -> %d", whereColumnsName[w], dbVal, whereOperators[w], userVal, conditionPassed);
+                // printf(" INT8 column name: %s-> %d %s %d -> %d", whereColumnsName[w], dbVal, whereOperators[w], userVal, conditionPassed);
             }
             // printf(" ------------------1\n");
             // 🌟 Serial.format xətası Serial.printf ilə əvəzləndi:
@@ -1164,7 +1164,7 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
         {
             // printf(" ------------------6\n");
             cursor.rowIndices[cursor.count++] = r; // ID-ni yadda saxla
-            printf(" id: %d  count: %d\n", r, cursor.count);
+            // printf(" id: %d  count: %d\n", r, cursor.count);
             // }
         }
         // printf(" ------------------8\n");

@@ -369,12 +369,12 @@ Cursor executeSelect(const char *sql, Cursor cursor)
             const char *ops[10];
             void *data[10];
             int condCount = 0;
-            printf("-------: %s\n", whereCond);
+            // printf("-------: %s\n", whereCond);
             parseWhereClause(whereCond, cols, data, ops, &condCount);
 
             // printf(" col count:  %d \n", whereCount);
             cursor = selectWhereCore(table1, cols, data, ops, condCount);
-            printf("\nWHERE: \n");
+            // printf("\nWHERE: \n");
             // for (int i = 0; i < condCount; i++)
             // {
             //     printf("    %s %s %d ", cols[i], ops[i], (char *)data[i]);
@@ -387,13 +387,13 @@ Cursor executeSelect(const char *sql, Cursor cursor)
                 if (cols[i] == NULL)
                     break;
 
-                printf("  [%d] Sütun: '%s' | Operator: '%s' | Dəyər: '%s'\n",
-                       i,
-                       cols[i],
-                       ops[i],
-                       (char *)data[i]); // void* olduğu üçün char* olaraq cast edirik
+                // printf("  [%d] Sütun: '%s' | Operator: '%s' | Dəyər: '%s'\n",
+                //        i,
+                //        cols[i],
+                //        ops[i],
+                //        (char *)data[i]); // void* olduğu üçün char* olaraq cast edirik
             }
-            printf("1: ");
+            // printf("1: ");
         }
         else if (hasJoin && !hasWhere)
         {
@@ -418,10 +418,10 @@ Cursor executeSelect(const char *sql, Cursor cursor)
             // Həm join, həm şərt funksiyası
             // selectJoinWhereData(table1, table2, parentCol, childCol, ... where massivləri ...);
         }
-        printf("2: ");
+        // printf("2: ");
         // cursor.tableName=table1;
         strncpy(cursor.tableName, (char *)table1, sizeof(cursor.tableName) - 1);
-        printf("3: ");
+        // printf("3: ");
         return cursor;
     }
     else
