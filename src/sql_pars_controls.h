@@ -301,7 +301,6 @@ void parseWhereClause2(char *whereCond, char *cols[], void *vals[], const char *
 
 Cursor executeSelect(const char *sql, Cursor cursor)
 {
-
     char columnsBuf[256] = {0};
     char table1[64] = {0};
     char table2[64] = {0};
@@ -374,6 +373,11 @@ Cursor executeSelect(const char *sql, Cursor cursor)
 
             // printf(" col count:  %d \n", whereCount);
             cursor = selectWhereCore(table1, cols, data, ops, condCount);
+            for (int i = 0; i < condCount; i++)
+            {
+                free(cols[i]);
+                free(data[i]);
+            }
             // for (int i = 0; i < condCount; i++)
             // {
             //     if (cols[i] != NULL)
