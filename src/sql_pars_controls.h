@@ -374,6 +374,15 @@ Cursor executeSelect(const char *sql, Cursor cursor)
 
             // printf(" col count:  %d \n", whereCount);
             cursor = selectWhereCore(table1, cols, data, ops, condCount);
+            for (int i = 0; i < condCount; i++)
+            {
+                if (cols[i] != NULL)
+                    free(cols[i]);
+                if ((void *)ops[i] != NULL)
+                    free((void *)ops[i]);
+                if (data[i] != NULL)
+                    free(data[i]); // Əgər data malloc olubsa
+            }
             // printf("\nWHERE: \n");
             // for (int i = 0; i < condCount; i++)
             // {
