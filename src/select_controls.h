@@ -971,7 +971,7 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
     Cursor cursor;
     cursor.count = 0;
     // cursor.rowIndices = malloc(sizeof(uint32_t) * 100); // Məsələn, 100 sətir üçün yer ayırırıq
-    cursor.rowIndices = (uint32_t *)malloc(sizeof(uint32_t) * 100);
+    cursor.rowIndices = (uint32_t *)malloc(sizeof(uint32_t) * 10);
     cursor.isFinished = true;
 
     DBHeader header;
