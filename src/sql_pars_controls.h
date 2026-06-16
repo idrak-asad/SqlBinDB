@@ -348,7 +348,7 @@ Cursor executeSelect(const char *sql, Cursor cursor)
         if (!hasJoin && !hasWhere)
         {
             // Ssenari 1: SELECT * FROM users
-            printf("[PROSES]: Sadə select icra olunur.\n");
+            // printf("[PROSES]: Sadə select icra olunur.\n");
             cursor = selectData(table1, &cursor);
         }
         else if (!hasJoin && hasWhere)
@@ -543,19 +543,19 @@ Cursor executeSQL(const char *sql)
 
             if (reCreate)
             {
-                printf("[PROSES İCRA OLUNUR]: '%s' bazası (Parol: '%s') (reCreate = true).\n", dbName, dbPsw);
+                // printf("[PROSES İCRA OLUNUR]: '%s' bazası (Parol: '%s') (reCreate = true).\n", dbName, dbPsw);
                 dropDb(dbName, dbPsw);
             }
             else
             {
-                printf("[PROSES İCRA OLUNUR]: '%s' bazası (Parol: '%s') (reCreate = false).\n", dbName, dbPsw);
+                // printf("[PROSES İCRA OLUNUR]: '%s' bazası (Parol: '%s') (reCreate = false).\n", dbName, dbPsw);
             }
             createDb(dbName, dbPsw);
             return retrunCursor;
         }
         else
         {
-            printf("SİNTAKSİS XƏTASI: Verilənlər bazasının adı tapılmadı.\n");
+            // printf("SİNTAKSİS XƏTASI: Verilənlər bazasının adı tapılmadı.\n");
             return retrunCursor;
         }
         return retrunCursor;
@@ -575,7 +575,7 @@ Cursor executeSQL(const char *sql)
                 {
                     if (!extractWord(&cursor, dbPsw, sizeof(dbPsw)))
                     {
-                        printf("SİNTAKSİS XƏTASI: PASSWORD açar sözündən sonra parol təyin edilməyib.\n");
+                        // printf("SİNTAKSİS XƏTASI: PASSWORD açar sözündən sonra parol təyin edilməyib.\n");
                         return retrunCursor;
                     }
                     continue;
@@ -586,12 +586,12 @@ Cursor executeSQL(const char *sql)
             // Real binar silmə funksiyası yalnız uğurlu skandandan sonra çağırılır
             dropDb(dbName, dbPsw);
 
-            printf("[PROSES İCRA OLUNUR]: '%s' bazası (Parol doğrulaması: '%s'), daxili cədvəlləri və metadatası ilə birlikdə diskdən tamamilə silinir.\n", dbName, dbPsw);
+            // printf("[PROSES İCRA OLUNUR]: '%s' bazası (Parol doğrulaması: '%s'), daxili cədvəlləri və metadatası ilə birlikdə diskdən tamamilə silinir.\n", dbName, dbPsw);
             return retrunCursor;
         }
         else
         {
-            printf("SİNTAKSİS XƏTASI: Silinəcək verilənlər bazasının adı tapılmadı.\n");
+            // printf("SİNTAKSİS XƏTASI: Silinəcək verilənlər bazasının adı tapılmadı.\n");
             return retrunCursor;
         }
         return retrunCursor;
@@ -622,12 +622,12 @@ Cursor executeSQL(const char *sql)
             // Real binar silmə funksiyası yalnız uğurlu skandandan sonra çağırılır
             printMetadata(dbName);
 
-            printf("[PROSES İCRA OLUNUR]: Matadata print edilir");
+            // printf("[PROSES İCRA OLUNUR]: Matadata print edilir");
             return retrunCursor;
         }
         else
         {
-            printf("SİNTAKSİS XƏTASI: Silinəcək verilənlər bazasının adı tapılmadı.\n");
+            // printf("SİNTAKSİS XƏTASI: Silinəcək verilənlər bazasının adı tapılmadı.\n");
             return retrunCursor;
         }
         return retrunCursor;
@@ -650,7 +650,7 @@ Cursor executeSQL(const char *sql)
     // ----------------------------------------------------------------
     if (matchKeyword(&cursor, "CREATE TABLE"))
     {
-        printf("Createing Table... \n");
+        // printf("Createing Table... \n");
         char tableName[64] = {0};
 
         if (extractWord(&cursor, tableName, sizeof(tableName)))
@@ -847,13 +847,13 @@ Cursor executeSQL(const char *sql)
 
                 if (success)
                 {
-                    printf("\n[SİSTEM TAM ÖDƏYİR]: '%s' cədvəli relyasiya sütunları ilə uğurla yığıldı.\n", tableName);
-                    printf(" -> MAX_ROWS Limiti: %d\n", maxRowsValue);
-                    printf(" -> Ümumi Sütun Sayı (Orijinal + İnyeksiya): %d\n", colCount);
+                    // printf("\n[SİSTEM TAM ÖDƏYİR]: '%s' cədvəli relyasiya sütunları ilə uğurla yığıldı.\n", tableName);
+                    // printf(" -> MAX_ROWS Limiti: %d\n", maxRowsValue);
+                    // printf(" -> Ümumi Sütun Sayı (Orijinal + İnyeksiya): %d\n", colCount);
                     for (int i = 0; i < colCount; i++)
                     {
-                        printf("   -> [%d] Sütun: Ad='%s', Tip='%s', Constraint='%s'\n",
-                               i + 1, columnNames[i], columnTypes[i], constraints[i]);
+                        // printf("   -> [%d] Sütun: Ad='%s', Tip='%s', Constraint='%s'\n",
+                        //        i + 1, columnNames[i], columnTypes[i], constraints[i]);
                     }
                 }
             }
@@ -888,20 +888,20 @@ Cursor executeSQL(const char *sql)
             dropTableHard(tableName);
 
             // İcra olunacaq funksiyaya dəyərləri ötürürük
-            printf("[PROSES]: '%s' cədvəli üçün DROP əməliyyatı başladıldı.\n", tableName);
-            printf("[REJİM]: hardDrop = %d ", hardDrop);
+            // printf("[PROSES]: '%s' cədvəli üçün DROP əməliyyatı başladıldı.\n", tableName);
+            // printf("[REJİM]: hardDrop = %d ", hardDrop);
 
             // Rejimə uyğun konsol mesajı
             switch (hardDrop)
             {
             case 0:
-                printf("(RESTRICT - Əlaqəli data varsa silinməyəcək)\n");
+                // printf("(RESTRICT - Əlaqəli data varsa silinməyəcək)\n");
                 break;
             case 1:
-                printf("(CASCADE - Əlaqəli bütün datalar birlikdə silinəcək)\n");
+                // printf("(CASCADE - Əlaqəli bütün datalar birlikdə silinəcək)\n");
                 break;
             case 2:
-                printf("(UNLINK - Əlaqəli dataların əlaqəsi kəsilib cədvəl silinəcək)\n");
+                // printf("(UNLINK - Əlaqəli dataların əlaqəsi kəsilib cədvəl silinəcək)\n");
                 break;
             }
 
@@ -910,7 +910,7 @@ Cursor executeSQL(const char *sql)
         }
         else
         {
-            printf("SİNTAKSİS XƏTASI: Silinəcək cədvəlin adı tapılmadı.\n");
+            // printf("SİNTAKSİS XƏTASI: Silinəcək cədvəlin adı tapılmadı.\n");
             return retrunCursor;
         }
 
@@ -988,17 +988,17 @@ Cursor executeSQL(const char *sql)
 
     if (matchKeyword(&cursor, "DELETE FROM"))
     {
-        printf("Delete Tables 1 . . . \n");
+        // printf("Delete Tables 1 . . . \n");
         char tableName[64] = {0};
         int hardDelete = 0;
         char whereCond[256] = {0};
 
         if (extractWord(&cursor, tableName, sizeof(tableName)))
         {
-            printf("Delete Tables 2 . . . \n");
+            // printf("Delete Tables 2 . . . \n");
             if (matchKeyword(&cursor, "WHERE"))
             {
-                printf("Delete Tables WHERE . . . \n");
+                // printf("Delete Tables WHERE . . . \n");
                 // 1. Şərti oxu
                 extractUntilKeywordOrEnd(&cursor, ";", whereCond, sizeof(whereCond));
 
@@ -1010,13 +1010,13 @@ Cursor executeSQL(const char *sql)
                 // 3. CASCADE/UNLINK yoxlamasını təmizlənmiş string üzərində et
                 if (strstr(trimmedWhere, "CASCADE"))
                 {
-                    printf("Delete Tables Cascade . . . \n");
+                    // printf("Delete Tables Cascade . . . \n");
                     hardDelete = 1;
                     *strstr(trimmedWhere, "CASCADE") = '\0';
                 }
                 else if (strstr(trimmedWhere, "UNLINK"))
                 {
-                    printf("Delete Tables unlink . . . \n");
+                    // printf("Delete Tables unlink . . . \n");
                     hardDelete = 2;
                     *strstr(trimmedWhere, "UNLINK") = '\0';
                 }
@@ -1026,45 +1026,45 @@ Cursor executeSQL(const char *sql)
                 const char *ops[10];
                 void *data[10];
                 int condCount = 0;
-                printf("Check: %s\n", whereCond);
+                // printf("Check: %s\n", whereCond);
                 parseWhereClause(whereCond, cols, data, ops, &condCount);
-                printf("Check: %s\n", whereCond);
+                // printf("Check: %s\n", whereCond);
                 // FUNKSİYANIN ÇAĞIRILMASI
-                printf("\n--- [DEBUG DELETE: Məlumatlar Yoxlanılır] ---\n");
-                printf("Cədvəl Adı: %s\n", tableName);
+                // printf("\n--- [DEBUG DELETE: Məlumatlar Yoxlanılır] ---\n");
+                // printf("Cədvəl Adı: %s\n", tableName);
 
                 // Silinmə rejiminin çapı
-                printf("Silinmə Rejimi: %d -> ", hardDelete);
+                // printf("Silinmə Rejimi: %d -> ", hardDelete);
                 switch (hardDelete)
                 {
                 case 0:
-                    printf("RESTRICT\n");
+                    // printf("RESTRICT\n");
                     break;
                 case 1:
-                    printf("CASCADE\n");
+                    // printf("CASCADE\n");
                     break;
                 case 2:
-                    printf("UNLINK\n");
+                    // printf("UNLINK\n");
                     break;
                 default:
-                    printf("Naməlum\n");
+                    // printf("Naməlum\n");
                     break;
                 }
 
                 // Şərtlərin çapı (condCount-u burada təyin etmədiyiniz üçün NULL yoxlanışı ilə gedirik)
-                printf("WHERE Şərtləri:\n");
+                // printf("WHERE Şərtləri:\n");
                 for (int i = 0; i < 10; i++)
                 {
                     if (cols[i] == NULL)
                         break;
 
-                    printf("  [%d] Sütun: '%s' | Operator: '%s' | Dəyər: '%s'\n",
-                           i,
-                           cols[i],
-                           ops[i],
-                           (char *)data[i]); // void* olduğu üçün char* olaraq cast edirik
+                    // printf("  [%d] Sütun: '%s' | Operator: '%s' | Dəyər: '%s'\n",
+                    //        i,
+                    //        cols[i],
+                    //        ops[i],
+                    //        (char *)data[i]); // void* olduğu üçün char* olaraq cast edirik
                 }
-                printf("--------------------------------------------\n");
+                // printf("--------------------------------------------\n");
                 deleteRows(tableName, cols, data, ops, hardDelete);
 
                 // Yaddaşı təmizlə (malloc etmisinizsə)
@@ -1120,25 +1120,25 @@ Cursor executeSQL(const char *sql)
                         if (extractParentheses(&cursor, valsBuf, sizeof(valsBuf)))
                         {
                             int columns_count = countElements(colsBuf);
-                            printf("[PROSES İCRA OLUNUR]: '%s' cədvəlinə məlumat yazılır.\n", tableName);
-                            printf("               -> Hədəf Sütunlar: [%s]\n", colsBuf);
-                            printf("               -> Binar Dəyərlər : [%s]\n", valsBuf);
-                            // printf("               -> columns_count : [%s]\n", columns_count);
-                            printf("              -> columns_count : [%d]\n", columns_count);
+                            // printf("[PROSES İCRA OLUNUR]: '%s' cədvəlinə məlumat yazılır.\n", tableName);
+                            // printf("               -> Hədəf Sütunlar: [%s]\n", colsBuf);
+                            // printf("               -> Binar Dəyərlər : [%s]\n", valsBuf);
+                            // // printf("               -> columns_count : [%s]\n", columns_count);
+                            // printf("              -> columns_count : [%d]\n", columns_count);
 
                             // Rejimə uyğun log çıxarırıq
-                            printf("[REJİM]: insertMode = %d -> ", insertMode);
+                            // printf("[REJİM]: insertMode = %d -> ", insertMode);
                             switch (insertMode)
                             {
                             case 0:
-                                printf("ABORT/RESTRICT (Xəta olarsa əməliyyat ləğv ediləcək)\n");
+                                // printf("ABORT/RESTRICT (Xəta olarsa əməliyyat ləğv ediləcək)\n");
                                 retrunCursor = insertRowsWithDelete(tableName, colsBuf, valsBuf, columns_count);
                                 break;
                             case 1:
-                                printf("REPLACE/CASCADE (Eyni unikal data varsa, köhnəni silib yenisini yazacaq)\n");
+                                // printf("REPLACE/CASCADE (Eyni unikal data varsa, köhnəni silib yenisini yazacaq)\n");
                                 break;
                             case 2:
-                                printf("IGNORE/UNLINK (Xəta və ya toqquşma olarsa bu sətir yazılmayacaq, atlanacaq)\n");
+                                // printf("IGNORE/UNLINK (Xəta və ya toqquşma olarsa bu sətir yazılmayacaq, atlanacaq)\n");
                                 break;
                             }
 
@@ -1146,28 +1146,28 @@ Cursor executeSQL(const char *sql)
                         }
                         else
                         {
-                            printf("SİNTAKSİS XƏTASI: VALUES üçün '(...)' mötərizəsi tapılmadı.\n");
+                            // printf("SİNTAKSİS XƏTASI: VALUES üçün '(...)' mötərizəsi tapılmadı.\n");
                         }
                     }
                     else
                     {
-                        printf("SİNTAKSİS XƏTASI: 'VALUES' açar sözü tapılmadı.\n");
+                        // printf("SİNTAKSİS XƏTASI: 'VALUES' açar sözü tapılmadı.\n");
                     }
                 }
                 else
                 {
-                    printf("SİNTAKSİS XƏTASI: Sütun siyahısı üçün '(...)' mötərizəsi tapılmadı.\n");
+                    // printf("SİNTAKSİS XƏTASI: Sütun siyahısı üçün '(...)' mötərizəsi tapılmadı.\n");
                 }
             }
             else
             {
-                printf("SİNTAKSİS XƏTASI: Cədvəl adı tapılmadı.\n");
+                // printf("SİNTAKSİS XƏTASI: Cədvəl adı tapılmadı.\n");
             }
             return retrunCursor;
         }
         else
         {
-            printf("SİNTAKSİS XƏTASI: 'INTO' açar sözü tapılmadı.\n");
+            // printf("SİNTAKSİS XƏTASI: 'INTO' açar sözü tapılmadı.\n");
             return retrunCursor;
         }
         return retrunCursor;
@@ -1188,7 +1188,7 @@ Cursor executeSQL(const char *sql)
     // ----------------------------------------------------------------
     if (matchKeyword(&cursor, "CONNECT DATABASE") || matchKeyword(&cursor, "CONNECT DB") || matchKeyword(&cursor, "USE"))
     {
-        printf("connecting DB....\n");
+        // printf("connecting DB....\n");
         char dbName[64] = {0};
         char dbPsw[32] = {0}; // Parolu təhlükəsiz saxlamaq üçün local bufer
 
@@ -1201,7 +1201,7 @@ Cursor executeSQL(const char *sql)
                 {
                     if (!extractWord(&cursor, dbPsw, sizeof(dbPsw)))
                     {
-                        printf("SİNTAKSİS XƏTASI: PASSWORD açar sözündən sonra parol daxil edilməyib.\n");
+                        // printf("SİNTAKSİS XƏTASI: PASSWORD açar sözündən sonra parol daxil edilməyib.\n");
                         return retrunCursor;
                     }
                     continue;
@@ -1214,25 +1214,25 @@ Cursor executeSQL(const char *sql)
 
             if (success)
             {
-                printf("[UĞURLU]: '%s' verilənlər bazasına qoşulma aktivləşdirildi.\n", dbName);
+                // printf("[UĞURLU]: '%s' verilənlər bazasına qoşulma aktivləşdirildi.\n", dbName);
                 if (strlen(dbPsw) > 0)
                 {
-                    printf("               -> Qoşulma növü: Təhlükəsiz (Parol təsdiqləndi).\n");
+                    // printf("               -> Qoşulma növü: Təhlükəsiz (Parol təsdiqləndi).\n");
                 }
                 else
                 {
-                    printf("               -> Qoşulma növü: Açıq (Parolsuz baza).\n");
+                    // printf("               -> Qoşulma növü: Açıq (Parolsuz baza).\n");
                 }
             }
             else
             {
-                printf("[XƏTA]: '%s' bazasına qoşulmaq mümkün olmadı! (Baza mövcut deyil və ya parol yalnışdır).\n", dbName);
+                // printf("[XƏTA]: '%s' bazasına qoşulmaq mümkün olmadı! (Baza mövcut deyil və ya parol yalnışdır).\n", dbName);
             }
             return retrunCursor;
         }
         else
         {
-            printf("SİNTAKSİS XƏTASI: Qoşulmaq üçün verilənlər bazasının adı tapılmadı.\n");
+            // printf("SİNTAKSİS XƏTASI: Qoşulmaq üçün verilənlər bazasının adı tapılmadı.\n");
             return retrunCursor;
         }
         return retrunCursor;

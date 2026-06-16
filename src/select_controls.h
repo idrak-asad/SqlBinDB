@@ -1577,7 +1577,7 @@ uint8_t selectAndDelete(const char *tableName, char *whereColumnsName[], void *w
 
     ColumnConfig configs[MAX_COLUMNS];
     file.read((uint8_t *)configs, sizeof(ColumnConfig) * header.columnCount);
-    printf(" select and delete  --------------1: \n");
+    // printf(" select and delete  --------------1: \n");
 #else
     // PC (Windows/Linux) üçün Standard C strukturu
     FILE *file = openTable(tableName, "rb+");
@@ -1600,12 +1600,12 @@ uint8_t selectAndDelete(const char *tableName, char *whereColumnsName[], void *w
     int whereCount = 0;
     while (whereColumnsName[whereCount] != NULL)
         whereCount++;
-    printf(" select and delete  --------------2: \n");
+    // printf(" select and delete  --------------2: \n");
     uint8_t rowBuffer[512];
     uint8_t deletedCount = 0;
     uint8_t deleteFlag = 1;
     long startPosition = sizeof(DBHeader) + (sizeof(ColumnConfig) * header.columnCount);
-    printf(" select and delete  --------------3: \n");
+    // printf(" select and delete  --------------3: \n");
     for (uint32_t r = 0; r < header.rowCount; r++)
     {
         long rowPos = startPosition + (r * header.rowSize);
@@ -1622,7 +1622,7 @@ uint8_t selectAndDelete(const char *tableName, char *whereColumnsName[], void *w
         DB_FILE_SEEK(file, rowPos);
         DB_FILE_READ(file, rowBuffer, header.rowSize);
         //
-        printf(" select and delete  --------------4: \n");
+        // printf(" select and delete  --------------4: \n");
         if (rowBuffer[0] == 1)
             continue; // Soft-delete olanları keç
 
@@ -1637,7 +1637,7 @@ uint8_t selectAndDelete(const char *tableName, char *whereColumnsName[], void *w
             int foundIdx = -1;
 
             // Sütun indeksini tap
-            printf(" select and delete  --------------4: \n");
+            // printf(" select and delete  --------------4: \n");
             for (int i = 1; i < header.columnCount; i++)
             {
                 if (strcmp(configs[i].columnName, whereColumnsName[w]) == 0)
@@ -1647,14 +1647,14 @@ uint8_t selectAndDelete(const char *tableName, char *whereColumnsName[], void *w
                 }
                 currentOffset += configs[i].dataSize;
             }
-            printf(" select and delete  --------------5: \n");
+            // printf(" select and delete  --------------5: \n");
 
             if (foundIdx == -1)
             {
                 allConditionsMatch = false;
                 break;
             }
-            printf(" select and delete  --------------6: \n");
+            // printf(" select and delete  --------------6: \n");
             // YENİ: Köməkçi funksiyanı çağırırıq
             bool conditionPassed = checkCondition(
                 configs[foundIdx].typeID,
@@ -1675,19 +1675,19 @@ uint8_t selectAndDelete(const char *tableName, char *whereColumnsName[], void *w
         // Əgər sətir bütün şərtlərə uyğundursa
         if (allConditionsMatch || whereCount == 0)
         {
-            printf(" select and delete  --------------7: \n");
+            // printf(" select and delete  --------------7: \n");
             // Faylda həmin sətrin 0-cı baytına (is_deleted) 1 yazırıq
             DB_FILE_SEEK(file, rowPos);          // Sətir başına qayıt
             DB_FILE_WRITE(file, &deleteFlag, 1); // 0-cı baytı 1 et
             DB_FILE_FLUSH(file);                 // Dəyişikliyi diskə yaz
 
             deletedCount++;
-            printf("DEBUG: Row %u deleted.\n", r);
+            // printf("DEBUG: Row %u deleted.\n", r);
         }
     }
 
     // fclose(file);
-    printf(" select and delete  --------------8: \n");
+    // printf(" select and delete  --------------8: \n");
 #if defined(TARGET_PLATFORM_ESP32)
     file.close();
 #else
