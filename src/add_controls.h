@@ -127,7 +127,7 @@ typedef struct
 {
     char sql[200];
     char tableName[MAX_NAME_LEN];
-    uint32_t *rowIndices; // Tapılan sətirlərin ofsetləri
+    uint32_t rowIndices[10]; // Tapılan sətirlərin ofsetləri
     uint8_t count;        // Hazırkı batch-də tapılanların sayı
     uint32_t lastOffset;  // Axtarışın qaldığı yer (fayl ofseti)
     bool isFinished;      // Bütün axtarış bitdimi?

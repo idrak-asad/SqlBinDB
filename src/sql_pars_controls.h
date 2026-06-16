@@ -435,11 +435,11 @@ Cursor executeSelect(const char *sql, Cursor cursor)
 void fetch(Cursor *c)
 {
     // Əvvəlki yaddaşı azad et ki, memory leak olmasın
-    if (c->rowIndices)
-    {
-        free(c->rowIndices);
-        c->rowIndices = NULL;
-    }
+    // if (c->rowIndices)
+    // {
+    //     free(c->rowIndices);
+    //     // c->rowIndices = NULL;
+    // }
     printf("DEBUG: Cari SQL hissəsi: %s\n", globalSQL); // SQL-i çap edir
     const char *sqlPtr = c->sql;
     matchKeyword(&globalSQL, "SELECT");
@@ -472,7 +472,7 @@ Cursor executeSQL(const char *sql)
     memset(&retrunCursor, 0, sizeof(Cursor)); // Bütün sahələri 0-a bərabər edir
     retrunCursor.count = 0;
     retrunCursor.isFinished = false;
-    retrunCursor.rowIndices = NULL;
+    // retrunCursor.rowIndices = {0};
     retrunCursor.lastOffset = 0; // Faylın başlanğıcından axtarışa başlayır
     // retrunCursor.isFinished = false;
     // retrunCursor.rowIndices = NULL; // İlk dəfə null edirik, funksiya özü malloc edəcək

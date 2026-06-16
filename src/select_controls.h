@@ -241,7 +241,7 @@ Cursor selectData(const char *tableName, Cursor *prevCursor)
     Cursor newCursor;
     newCursor.count = 0;
     // newCursor.rowIndices = malloc(sizeof(uint32_t) * 10); // 10-luq batch
-    newCursor.rowIndices = (uint32_t *)malloc(sizeof(uint32_t) * 100);
+    // newCursor.rowIndices = (uint32_t *)malloc(sizeof(uint32_t) * 100);
     newCursor.isFinished = false;
 
     // 1. Faylı aç (openTable sizin funksiyanızdır)
@@ -971,7 +971,7 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
     Cursor cursor;
     cursor.count = 0;
     // cursor.rowIndices = malloc(sizeof(uint32_t) * 100); // Məsələn, 100 sətir üçün yer ayırırıq
-    cursor.rowIndices = (uint32_t *)malloc(sizeof(uint32_t) * 10);
+    // cursor.rowIndices = (uint32_t *)malloc(sizeof(uint32_t) * 10);
     cursor.isFinished = true;
 
     DBHeader header;
@@ -1702,7 +1702,7 @@ void listTableData(const char *tableName)
     Cursor cursor;
     cursor.lastOffset = 0; // Faylın başlanğıcından axtarışa başlayır
     cursor.isFinished = false;
-    cursor.rowIndices = NULL; // İlk dəfə null edirik, funksiya özü malloc edəcək
+    // cursor.rowIndices = NULL; // İlk dəfə null edirik, funksiya özü malloc edəcək
 
     printf("\n--- '%s' CƏDVƏLİNDƏN MƏLUMATLARIN OXUNMASI ---\n", tableName);
 
@@ -1721,11 +1721,11 @@ void listTableData(const char *tableName)
         }
 
         // Yaddaşı təmizləməyi unutmayın!
-        if (cursor.rowIndices != NULL)
-        {
-            free(cursor.rowIndices);
-            cursor.rowIndices = NULL;
-        }
+        // if (cursor.rowIndices != NULL)
+        // {
+        //     free(cursor.rowIndices);
+        //     // cursor.rowIndices = NULL;
+        // }
 
     } while (!cursor.isFinished); // Əgər faylın sonuna çatmamışıqsa, dövr davam edir
 
@@ -1845,7 +1845,7 @@ Cursor selectWhereCursor(const char *tableName, char *whereColumnsName[], void *
     Cursor cursor;
     cursor.count = 0;
     // cursor.rowIndices = malloc(sizeof(uint32_t) * 10); // İlkin 100 sətirlik yer
-    cursor.rowIndices = (uint32_t *)malloc(sizeof(uint32_t) * 10);
+    // cursor.rowIndices = (uint32_t *)malloc(sizeof(uint32_t) * 10);
     cursor.isFinished = true;
 
     DBHeader header;
