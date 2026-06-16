@@ -223,11 +223,11 @@ File openTable(const char *tableName, const char *openType)
     // Serial.println(tableFilePath);
 
     File file = LittleFS.open(tableFilePath, openType);
-    if (!file)
-    {
-        Serial.println("[XƏTA] 'r+' rejimində tapılmadı, 'r' (oxuma) rejimi yoxlanılır...");
-        file = LittleFS.open(tableFilePath, "r");
-    }
+    // if (!file)
+    // {
+    //     Serial.println("[XƏTA] 'r+' rejimində tapılmadı, 'r' (oxuma) rejimi yoxlanılır...");
+    //     file = LittleFS.open(tableFilePath, "r");
+    // }
     return file;
 }
 #else
