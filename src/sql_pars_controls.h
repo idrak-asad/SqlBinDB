@@ -374,15 +374,15 @@ Cursor executeSelect(const char *sql, Cursor cursor)
 
             // printf(" col count:  %d \n", whereCount);
             cursor = selectWhereCore(table1, cols, data, ops, condCount);
-            for (int i = 0; i < condCount; i++)
-            {
-                if (cols[i] != NULL)
-                    free(cols[i]);
-                if ((void *)ops[i] != NULL)
-                    free((void *)ops[i]);
-                if (data[i] != NULL)
-                    free(data[i]); // Əgər data malloc olubsa
-            }
+            // for (int i = 0; i < condCount; i++)
+            // {
+            //     if (cols[i] != NULL)
+            //         free(cols[i]);
+            //     if ((void *)ops[i] != NULL)
+            //         free((void *)ops[i]);
+            //     if (data[i] != NULL)
+            //         free(data[i]); // Əgər data malloc olubsa
+            // }
             // printf("\nWHERE: \n");
             // for (int i = 0; i < condCount; i++)
             // {
@@ -391,17 +391,17 @@ Cursor executeSelect(const char *sql, Cursor cursor)
             //     free((void *)ops[i]);
             //     free((void *)data[i]);
             // }
-            for (int i = 0; i < condCount; i++)
-            {
-                if (cols[i] == NULL)
-                    break;
+            // for (int i = 0; i < condCount; i++)
+            // {
+            //     if (cols[i] == NULL)
+            //         break;
 
-                // printf("  [%d] Sütun: '%s' | Operator: '%s' | Dəyər: '%s'\n",
-                //        i,
-                //        cols[i],
-                //        ops[i],
-                //        (char *)data[i]); // void* olduğu üçün char* olaraq cast edirik
-            }
+            //     // printf("  [%d] Sütun: '%s' | Operator: '%s' | Dəyər: '%s'\n",
+            //     //        i,
+            //     //        cols[i],
+            //     //        ops[i],
+            //     //        (char *)data[i]); // void* olduğu üçün char* olaraq cast edirik
+            // }
             // printf("1: ");
         }
         else if (hasJoin && !hasWhere)
@@ -479,10 +479,10 @@ Cursor executeSQL(const char *sql)
     // retrunCursor.rowIndices = (uint32_t *)malloc(sizeof(uint32_t) * 100);
     // Cursor cursor;
     memset(&retrunCursor, 0, sizeof(Cursor)); // Bütün sahələri 0-a bərabər edir
-    retrunCursor.count = 0;
-    retrunCursor.isFinished = false;
+    // retrunCursor.count = 0;
+    // retrunCursor.isFinished = false;
     // retrunCursor.rowIndices = {0};
-    retrunCursor.lastOffset = 0; // Faylın başlanğıcından axtarışa başlayır
+    // retrunCursor.lastOffset = 0; // Faylın başlanğıcından axtarışa başlayır
     // retrunCursor.isFinished = false;
     // retrunCursor.rowIndices = NULL; // İlk dəfə null edirik, funksiya özü malloc edəcək
     // retrunCursor.sql = sql;
