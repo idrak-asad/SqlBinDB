@@ -1014,8 +1014,8 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
 #endif
 
     // int whereCount = 0;
-    while (whereColumnsName[whereCount] != NULL)
-        whereCount++;
+    // while (whereColumnsName[whereCount] != NULL)
+    //     whereCount++;
 
     printf("\n=== FILTERED SELECT: %s (Filtr Sayi: %d) ===\n", tableName, whereCount);
     for (int i = 1; i < header.columnCount; i++)
@@ -1159,6 +1159,7 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
             printf(" ------------------5\n");
             printf("\n");
         }
+        printf(" ------------------7\n");
         if (allConditionsMatch)
         {
             printf(" ------------------6\n");
@@ -1166,7 +1167,7 @@ Cursor selectWhereCore(const char *tableName, char *whereColumnsName[], void *wh
             printf(" id: %d  count: %d\n", r, cursor.count);
             // }
         }
-        printf(" ------------------7\n");
+        printf(" ------------------8\n");
     }
 #if defined(TARGET_PLATFORM_ESP32)
     file.close();
